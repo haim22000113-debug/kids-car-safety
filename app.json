@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "חשיבה פקוחה",
+    "slug": "hashiva-pkucha-ortal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "hashivapkucha",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2B6CB0"
+        }
+      ],
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "כדי שההגנה תעבוד גם כשהאפליקציה אינה פתוחה, אנחנו משתמשים במיקום ברקע. המיקום נשמר במכשיר שלך בלבד.",
+          "locationWhenInUsePermission": "המיקום משמש לזיהוי תחילת נסיעה וסיומה.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5785a7f9-4cdc-4134-a502-1c0dc82c9aa2"
+      }
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kidscarsafety.app"
+    },
+    "android": {
+      "package": "com.kidscarsafety.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2B6CB0"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5785a7f9-4cdc-4134-a502-1c0dc82c9aa2"
+    }
+  }
+}

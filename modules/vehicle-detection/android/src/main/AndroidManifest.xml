@@ -1,0 +1,39 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!--
+    ההרשאה לזיהוי תנועה. שתי השורות נחוצות:
+    הראשונה למכשירים עם אנדרואיד 9 ומטה, השנייה לאנדרואיד 10 ומעלה
+    (שם זו הרשאה שצריך לבקש מהמשתמש בזמן ריצה, לא רק להצהיר עליה).
+    שים לב: אין כאן שום הרשאת מיקום - הזיהוי מבוסס על חיישן התאוצה בלבד.
+  -->
+  <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+  <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
+  <!-- נדרש כדי להציג התראה מהקוד הנייטיב באנדרואיד 13 ומעלה. -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <!--
+      המקלט שגוגל מעירה כשמתרחש מעבר בין מצבי תנועה.
+      הוא מוצהר כאן במניפסט (ולא נרשם מתוך הקוד בזמן ריצה) - וזה קריטי:
+      מקלט שמוצהר במניפסט ממשיך לעבוד גם אחרי שהמשתמש סגר את האפליקציה
+      לגמרי, כי המערכת מפעילה תהליך חדש רק בשבילו. מקלט שנרשם בזמן ריצה
+      היה מת יחד עם האפליקציה - ואז ההורה שסוגר אפליקציות לא היה מקבל
+      כלום, וזה בדיוק ההורה שהכי צריך את זה.
+
+      exported="true" נדרש כי מי ששולח את השידור הוא Google Play Services,
+      תהליך חיצוני לאפליקציה שלנו.
+
+      שם המחלקה כתוב במלואו ולא כ-".VehicleTransitionReceiver" בכוונה:
+      שם יחסי במניפסט של ספרייה מורחב בזמן המיזוג לפי שם החבילה של
+      *האפליקציה* ולא של הספרייה. כלומר הוא היה הופך ל-
+      com.kidscarsafety.app.VehicleTransitionReceiver - מחלקה שלא קיימת,
+      והמקלט פשוט לא היה נקרא כשגוגל מזהה יציאה מרכב.
+    -->
+    <receiver
+      android:name="com.kidscarsafety.vehicledetection.VehicleTransitionReceiver"
+      android:exported="true"
+      android:enabled="true" />
+  </application>
+
+</manifest>

@@ -1,0 +1,63 @@
+apply plugin: 'com.android.library'
+
+group = 'com.kidscarsafety.vehicledetection'
+version = '1.0.0'
+
+/**
+ * חלוקת התפקידים בין ארבע השורות האלה לא אינטואיטיבית, ובלבול בה כבר
+ * עלה כאן בכמה סבבי בנייה:
+ *
+ * - applyKotlinExpoModulesCorePlugin() מחיל את plugin ה-kotlin-android
+ *   וקובע את גרסאות Kotlin ו-KSP. הוא *לא* קובע compileSdk.
+ * - useDefaultAndroidSdkVersions() הוא זה שקובע compileSdk, minSdk
+ *   ו-targetSdk לפי מה שהפרויקט הראשי הגדיר.
+ * - useCoreDependencies() מוסיף את התלות ב-expo-modules-core.
+ * - useExpoPublishing() מגדיר איך המודול נארז.
+ *
+ * הייתה כאן פעם הערה שטענה ש-applyKotlinExpoModulesCorePlugin מגדיר
+ * גם compileSdk. היא לא נכונה, ובגללה הבנייה נפלה עם
+ * "project ':vehicle-detection' does not specify compileSdk".
+ * אפשר לראות בעצמך מה כל פונקציה עושה בקובץ
+ * node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
+ */
+def expoModulesCorePlugin = new File(
+  project(":expo-modules-core").projectDir.absolutePath,
+  "ExpoModulesCorePlugin.gradle"
+)
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "com.kidscarsafety.vehicledetection"
+
+  defaultConfig {
+    minSdkVersion 24
+  }
+}
+
+dependencies {
+  /**
+   * זיהוי מצבי תנועה. חלק מ-Google Play Services.
+   *
+   * אל תעלה את הגרסה הזו בלי לבדוק, גם אם כלי כלשהו ממליץ על כך.
+   * 21.4.0 קומפלה על ידי גוגל עם Kotlin 2.3, ו-Expo SDK 57 מקמפל עם
+   * Kotlin 2.1. מהדר Kotlin מסרב לקרוא מטא-דאטה שנוצר בגרסה חדשה ממנו,
+   * והבנייה נופלת עם
+   * "Module was compiled with an incompatible version of Kotlin.
+   *  The binary version of its metadata is 2.3.0, expected version is 2.1.0".
+   *
+   * 21.0.1 היא בדיוק הגרסה ש-expo-location מביאה ממילא, כך שיש רק גרסה
+   * אחת בעץ התלויות ואין התנגשות. ה-API של ActivityRecognition
+   * ו-ActivityTransition שאנחנו משתמשים בו קיים בה במלואו.
+   */
+  implementation 'com.google.android.gms:play-services-location:21.0.1'
+
+  // נדרש ל-NotificationCompat שהמקלט משתמש בו כדי לשלוח את ההתראה.
+  // אסור להסתמך על כך שהוא יגיע דרך expo-modules-core - אם הוא מוגדר שם
+  // כ-implementation ולא כ-api, הוא לא יהיה זמין לנו בקומפילציה.
+  // הגרסה כאן היא רצפה בלבד: Gradle יבחר את הגבוהה מבין כל המודולים.
+  implementation 'androidx.core:core-ktx:1.13.1'
+}
