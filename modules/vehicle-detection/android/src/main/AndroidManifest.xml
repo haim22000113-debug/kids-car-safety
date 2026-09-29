@@ -12,6 +12,12 @@
   <!-- נדרש כדי להציג התראה מהקוד הנייטיב באנדרואיד 13 ומעלה. -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+  <!--
+    נדרש כדי לרשום מחדש את זיהוי התנועה אחרי הפעלה מחדש של הטלפון.
+    בלי זה ההגנה האוטומטית נכבית בשקט בכל אתחול.
+  -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
   <application>
     <!--
       המקלט שגוגל מעירה כשמתרחש מעבר בין מצבי תנועה.
@@ -34,6 +40,22 @@
       android:name="com.kidscarsafety.vehicledetection.VehicleTransitionReceiver"
       android:exported="true"
       android:enabled="true" />
+
+    <!--
+      מעיר אותנו אחרי הפעלה מחדש של הטלפון, כדי לרשום מחדש את זיהוי
+      התנועה. הרישום מול Google Play Services לא שורד אתחול, ובלי
+      המקלט הזה ההורה נשאר בלי הגנה עד שיפתח את האפליקציה בעצמו.
+    -->
+    <receiver
+      android:name="com.kidscarsafety.vehicledetection.BootReceiver"
+      android:exported="true"
+      android:enabled="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+      </intent-filter>
+    </receiver>
   </application>
 
 </manifest>
