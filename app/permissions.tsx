@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Linking, AppState } from 'react-nat
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { theme } from '../src/theme';
 import * as locationService from '../src/services/locationService';
 import * as vehicleDetection from '../modules/vehicle-detection';
@@ -85,6 +86,7 @@ export default function Permissions() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {!fromOnboarding ? <ScreenHeader fallback="/settings" /> : null}
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>כדי שההגנה תעבוד</Text>
         <Text style={styles.intro}>

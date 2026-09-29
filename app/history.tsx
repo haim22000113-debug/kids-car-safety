@@ -7,6 +7,7 @@ import { TripStorage } from '../src/storage';
 import { Trip } from '../src/models';
 import { formatDateTime, formatDuration } from '../src/utils/format';
 import { LoadingScreen } from '../src/components/LoadingScreen';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 
 // Trip History (סעיף 18) - בלי גרפים, רשימה פשוטה.
 function tripStatusLabel(trip: Trip): string {
@@ -53,7 +54,7 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <Text style={styles.title}>הנסיעות שלי</Text>
+      <ScreenHeader title="הנסיעות שלי" fallback="/home" />
 
       {trips.length === 0 ? (
         <Text style={styles.empty}>עדיין לא היו נסיעות. אחרי הנסיעה הראשונה שלך היא תופיע כאן.</Text>

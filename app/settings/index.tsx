@@ -7,6 +7,7 @@ import { isDiagnosticsEnabled } from '../../src/diagnostics';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
+import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { theme } from '../../src/theme';
 import { UserStorage, TripStorage } from '../../src/storage';
 import { User, isAutoProtectionEnabled } from '../../src/models';
@@ -185,8 +186,8 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScreenHeader title="הגדרות" fallback="/home" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.pageTitle}>הגדרות</Text>
 
         <Text style={styles.sectionTitle}>השם שלך</Text>
         <TextField label="שם פרטי" value={name} onChangeText={setName} />

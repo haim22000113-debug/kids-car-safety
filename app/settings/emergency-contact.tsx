@@ -59,6 +59,8 @@ export default function EmergencyContact() {
 
   return (
     <FormScreen
+      showBack={!fromOnboarding}
+      backFallback="/settings"
       footer={
         <>
           <Button title="שמור" onPress={onSave} loading={saving} />

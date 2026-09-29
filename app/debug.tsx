@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Button } from '../src/components/Button';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { theme } from '../src/theme';
 import { config, APP_ENV } from '../src/config';
 import { AutoTripSnapshot, TripState } from '../src/models/TripState';
@@ -101,8 +102,8 @@ export default function Debug() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScreenHeader title="מסך אבחון" fallback="/settings" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>מסך אבחון</Text>
         <Text style={styles.env}>סביבה: {APP_ENV}</Text>
 
         <Text style={styles.section}>מצב נוכחי</Text>
