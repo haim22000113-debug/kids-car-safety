@@ -73,7 +73,7 @@ Notifications.setNotificationHandler({
 /** האזהרה הראשונה. מורגשת, אבל לא מבהילה. */
 export const WARNING_CHANNEL_GENTLE = 'vehicle-warning-gentle-v3';
 /** מהאזהרה השנייה ואילך. */
-export const WARNING_CHANNEL_URGENT = 'vehicle-warning-urgent-v3';
+export const WARNING_CHANNEL_URGENT = 'vehicle-warning-urgent-v4';
 export const REMINDER_CHANNEL = 'safety-check-v2';
 export const STATUS_CHANNEL = 'trip-status-v2';
 
@@ -100,17 +100,25 @@ if (Platform.OS === 'android') {
   /**
    * מהאזהרה השנייה ואילך: עוצמת שעון מעורר.
    *
-   * usage של שעון מעורר משמעו שהצליל מתנגן בערוץ השמע של האזעקות, ולכן
-   * נשמע גם כשהטלפון במצב שקט או רטט. בשלב הזה כבר עברו ארבע דקות בלי
-   * שום תגובה, וזה מצדיק את זה.
+   * שלושה דברים פועלים כאן ביחד, וכל אחד מהם נחוץ:
+   *
+   * 1. usage של שעון מעורר - הצליל מתנגן בערוץ השמע של האזעקות, ולכן
+   *    נשמע גם כשהטלפון במצב שקט או רטט.
+   * 2. צליל משלנו באורך 28 שניות במקום צליל המערכת. צליל התראה רגיל
+   *    נמשך 2-3 שניות, והורה עם הטלפון בכיס או בתיק פשוט לא ישמע אותו.
+   * 3. עוצמה MAX + רטט ארוך.
+   *
+   * בשלב הזה כבר עברו ארבע דקות בלי שום תגובה, וזה מצדיק את הכל.
    */
   Notifications.setNotificationChannelAsync(WARNING_CHANNEL_URGENT, {
     name: 'אזהרה דחופה',
     description: 'מושמעת כשלא הגיבו לאזהרה הראשונה. מומלץ לא לכבות.',
     importance: Notifications.AndroidImportance.MAX,
-    sound: 'default',
+    // שם הקובץ בלבד, בלי נתיב. הפלאגין מעתיק אותו לתוך האפליקציה
+    // בזמן הבנייה לפי הרשימה ב-app.json.
+    sound: 'warning_alarm.wav',
     enableVibrate: true,
-    vibrationPattern: [0, 500, 250, 500, 250, 500],
+    vibrationPattern: [0, 600, 300, 600, 300, 600, 300, 600],
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     bypassDnd: true,
     audioAttributes: {
