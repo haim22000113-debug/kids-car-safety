@@ -134,7 +134,7 @@ export async function startTracking(): Promise<boolean> {
       activityType: Location.ActivityType.AutomotiveNavigation,
       showsBackgroundLocationIndicator: false,
       foregroundService: {
-        notificationTitle: 'חשיבה פקוחה',
+        notificationTitle: 'כולם איתי',
         notificationBody: 'ההגנה האוטומטית פעילה',
         notificationColor: '#2B6CB0',
         killServiceOnDestroy: false,
