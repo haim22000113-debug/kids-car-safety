@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Linking } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
@@ -11,6 +11,7 @@ import { trackEvent } from '../../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../../src/analytics/events';
 import { cancelReminders } from '../../src/notifications/notificationService';
 import { isReminderDeadlinePassed } from '../../src/notifications/reminderLogic';
+import { callEmergencyContact } from '../../src/services/callService';
 
 // End Trip / Safety Check (סעיף 11-12) - המסך החשוב ביותר במוצר.
 export default function SafetyCheck() {
@@ -82,9 +83,7 @@ export default function SafetyCheck() {
 
   const onCallEmergencyContact = () => {
     if (!emergencyContact) return;
-    Linking.openURL(`tel:${emergencyContact.phone}`).catch(() => {
-      // אם החיוג נכשל (למשל בסימולטור) - לא מקריסים, פשוט לא קורה כלום.
-    });
+    void callEmergencyContact(emergencyContact.phone);
   };
 
   if (!trip || error) {

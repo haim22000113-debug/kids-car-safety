@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Linking } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
@@ -8,6 +8,7 @@ import { UserStorage } from '../src/storage';
 import { EmergencyContact } from '../src/models';
 import { TripState } from '../src/models/TripState';
 import * as tripStateService from '../src/services/tripStateService';
+import { callEmergencyContact } from '../src/services/callService';
 
 /**
  * מסך האזהרה (סעיפים 15, 50).
@@ -45,8 +46,9 @@ export default function Warning() {
 
   const callContact = () => {
     if (!contact) return;
-    // סעיף 18: לעולם לא מחייגים בלי פעולה מפורשת של ההורה.
-    Linking.openURL(`tel:${contact.phone}`).catch(() => {});
+    // לחיצה אחת = שיחה יוצאת. עדיין פעולה מפורשת של ההורה - האפליקציה
+    // לעולם לא מחייגת בעצמה. ראה callService.
+    void callEmergencyContact(contact.phone);
   };
 
   if (showHelp) {

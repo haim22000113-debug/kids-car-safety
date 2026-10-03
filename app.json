@@ -47,7 +47,8 @@
       "package": "com.kidscarsafety.app",
       "versionCode": 1,
       "permissions": [
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.CALL_PHONE"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
