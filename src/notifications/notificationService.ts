@@ -77,6 +77,34 @@ export const WARNING_CHANNEL_URGENT = 'vehicle-warning-urgent-v4';
 export const REMINDER_CHANNEL = 'safety-check-v2';
 export const STATUS_CHANNEL = 'trip-status-v2';
 
+/**
+ * קטגוריית האזהרה, שמוסיפה כפתור "כולם איתי" על ההתראה עצמה.
+ *
+ * למה זה חשוב דווקא כאן: האזהרות הדחופות מנגנות צליל ארוך בעוצמת
+ * אזעקה. ברגע שההורה כבר שם לב, הצליל הופך למטרד — והוא צריך דרך
+ * לעצור אותו **מיד**, בלי לחפש את האפליקציה ובלי לנווט בתוכה.
+ * לחיצה על הכפתור סוגרת את ההתראה (ואיתה את הצליל) ומבטלת את כל
+ * שאר השרשרת.
+ *
+ * opensAppToForeground נשאר true בכוונה. עם false, לחיצה על הכפתור
+ * לא הייתה מטופלת בכלל כשהאפליקציה סגורה לגמרי — וזה בדיוק המצב
+ * שבו רוב האזהרות מגיעות.
+ */
+export const WARNING_CATEGORY = 'vehicle-warning';
+export const ACTION_CONFIRM_SAFE = 'CONFIRM_SAFE';
+
+if (Platform.OS === 'android') {
+  Notifications.setNotificationCategoryAsync(WARNING_CATEGORY, [
+    {
+      identifier: ACTION_CONFIRM_SAFE,
+      buttonTitle: 'כולם איתי',
+      options: { opensAppToForeground: true },
+    },
+  ]).catch(() => {
+    // בלי הכפתור ההתראה עדיין עובדת, רק פחות נוחה.
+  });
+}
+
 if (Platform.OS === 'android') {
   /**
    * האזהרה הראשונה: צליל התראה רגיל ורטט קצר.
@@ -104,8 +132,10 @@ if (Platform.OS === 'android') {
    *
    * 1. usage של שעון מעורר - הצליל מתנגן בערוץ השמע של האזעקות, ולכן
    *    נשמע גם כשהטלפון במצב שקט או רטט.
-   * 2. צליל משלנו באורך 28 שניות במקום צליל המערכת. צליל התראה רגיל
+   * 2. צליל משלנו באורך 12 שניות במקום צליל המערכת. צליל התראה רגיל
    *    נמשך 2-3 שניות, והורה עם הטלפון בכיס או בתיק פשוט לא ישמע אותו.
+   *    12 ולא יותר: אחרי שההורה כבר שם לב, צליל ארוך הופך למטרד,
+   *    ויש גם כפתור "כולם איתי" על ההתראה שעוצר אותו מיד.
    * 3. עוצמה MAX + רטט ארוך.
    *
    * בשלב הזה כבר עברו ארבע דקות בלי שום תגובה, וזה מצדיק את הכל.
@@ -358,6 +388,9 @@ export async function scheduleWarningLadder(): Promise<string[]> {
           title: step.title,
           body: step.body,
           sound: true,
+          // מוסיף את כפתור "כולם איתי" על ההתראה, כדי שאפשר יהיה
+          // להשתיק את האזעקה בלחיצה אחת.
+          categoryIdentifier: WARNING_CATEGORY,
           // priority לבדו לא עושה כלום מאנדרואיד 8 ומעלה - הערוץ הוא
           // שקובע. הוא נשאר כאן בשביל מכשירים ישנים יותר.
           priority: Notifications.AndroidNotificationPriority.MAX,

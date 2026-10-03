@@ -5,12 +5,15 @@ import { ensureRTL } from '../src/i18n/rtl';
 import { trackEvent } from '../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../src/analytics/events';
 import { theme } from '../src/theme';
-import '../src/notifications/notificationService';
+import {
+  ACTION_CONFIRM_SAFE,
+} from '../src/notifications/notificationService';
 // חייב להיות ייבוא בשורה נפרדת ובלי שימוש: הוא רושם את משימות הרקע
 // בזמן טעינת המודול, לפני שריאקט מרנדר. אם המערכת מעירה את האפליקציה
 // לאירוע רקע והמשימה לא רשומה - האירוע פשוט הולך לאיבוד.
 import '../src/services/backgroundTasks';
 import * as protectionService from '../src/services/protectionService';
+import * as tripStateService from '../src/services/tripStateService';
 
 /**
  * לחיצה על התראה מעבירה למסך הרלוונטי (סעיף 14). התראות של תחילת נסיעה
@@ -44,12 +47,32 @@ export default function RootLayout() {
     // התראה שנלחצת בזמן שהאפליקציה פתוחה/ברקע (סעיף 14 - לחיצה על התראה
     // מעבירה ישר ל-Safety Check).
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      /**
+       * לחיצה על כפתור "כולם איתי" שעל ההתראה עצמה.
+       *
+       * זה מה שמשתיק את אזעקת ה-12 שניות מיד ומבטל את כל שאר השרשרת,
+       * בלי שההורה יצטרך לנווט בתוך האפליקציה. ברגע שהוא כבר שם לב,
+       * כל שנייה נוספת של צלצול היא רק מטרד.
+       */
+      if (response.actionIdentifier === ACTION_CONFIRM_SAFE) {
+        trackEvent(AnalyticsEvent.REMINDER_OPENED);
+        void tripStateService.confirmSafe();
+        router.replace('/safe');
+        return;
+      }
+
       openFromNotification(response.notification.request.content.data);
     });
 
     // מקרה של פתיחת האפליקציה מאפס על ידי לחיצה על התראה (cold start).
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      openFromNotification(response?.notification.request.content.data);
+      if (!response) return;
+      if (response.actionIdentifier === ACTION_CONFIRM_SAFE) {
+        void tripStateService.confirmSafe();
+        router.replace('/safe');
+        return;
+      }
+      openFromNotification(response.notification.request.content.data);
     });
 
     // שני הצעדים האלה חייבים לקרות בסדר הזה, ולכן הם באותה שרשרת:
