@@ -156,7 +156,7 @@ export async function startTracking(): Promise<boolean> {
       activityType: Location.ActivityType.AutomotiveNavigation,
       showsBackgroundLocationIndicator: false,
       foregroundService: {
-        notificationTitle: 'כולם איתי',
+        notificationTitle: 'Little Shield',
         notificationBody: 'ההגנה האוטומטית פעילה',
         notificationColor: '#2B6CB0',
         killServiceOnDestroy: false,

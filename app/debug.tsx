@@ -96,7 +96,7 @@ export default function Debug() {
   const shareLog = async () => {
     const fmt = (t: number) => new Date(t).toLocaleString('he-IL');
     const lines = [
-      'כולם איתי - יומן אבחון',
+      'Little Shield - יומן אבחון',
       'נוצר: ' + fmt(Date.now()),
       'State: ' + snapshot.state,
       'מעקב מיקום: ' + (tracking ? 'פעיל' : 'כבוי'),

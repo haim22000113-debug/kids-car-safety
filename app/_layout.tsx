@@ -48,7 +48,7 @@ export default function RootLayout() {
     // מעבירה ישר ל-Safety Check).
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
       /**
-       * לחיצה על כפתור "כולם איתי" שעל ההתראה עצמה.
+       * לחיצה על כפתור "ראיתי, אני מטפל" שעל ההתראה עצמה.
        *
        * זה מה שמשתיק את אזעקת ה-12 שניות מיד ומבטל את כל שאר השרשרת,
        * בלי שההורה יצטרך לנווט בתוך האפליקציה. ברגע שהוא כבר שם לב,
