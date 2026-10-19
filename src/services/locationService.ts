@@ -1,9 +1,16 @@
 import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 import { GeoPoint } from '../models/TripState';
 import { config } from '../config';
 import { logEvent, TripEventName } from './eventLog';
+import { getItem, setItem } from '../storage/StorageService';
+import { StorageKeys } from '../storage/storageKeys';
+
+/**
+ * לעלות כשמשנים את הגדרות המעקב שלמטה. מכשירים שכבר מריצים מעקב ימשיכו
+ * עם ההגדרות הישנות עד שיעצרו - והגרסה היא מה שגורם לנו לעצור ולהתחיל מחדש.
+ */
+const LOCATION_OPTIONS_VERSION = '2';
 
 /**
  * עטיפה סביב expo-location (סעיפים 26, 43, 44).
@@ -122,14 +129,29 @@ export async function startTracking(): Promise<boolean> {
   const permissions = await getPermissions();
   if (!permissions.foreground) return false;
 
-  const alreadyRunning = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK);
-  if (alreadyRunning) return true;
+  /**
+   * hasStartedLocationUpdatesAsync ולא isTaskRegisteredAsync.
+   *
+   * הבדיקה הקודמת שאלה אם המשימה *רשומה*, לא אם היא *רצה*. אחרי אתחול
+   * טלפון, עדכון אפליקציה או סגירה על ידי המערכת המשימה נשארת רשומה אבל
+   * מתה - והאפליקציה חשבה שהכל תקין ולא הפעילה אותה מחדש. מנגנון הגיבוי
+   * היה מת בשקט עד התקנה מחדש.
+   */
+  const running = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
+  const version = await getItem<string>(StorageKeys.LOCATION_OPTIONS_VERSION);
+  if (running && version === LOCATION_OPTIONS_VERSION) return true;
+  if (running) {
+    // רץ עם הגדרות ישנות - עוצרים כדי להפעיל עם החדשות.
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {});
+    logEvent(TripEventName.PERMISSION_CHANGED, 'מעקב מיקום הופעל מחדש עם הגדרות חדשות');
+  }
 
   try {
     await Location.startLocationUpdatesAsync(LOCATION_TASK, {
       accuracy: Location.Accuracy.Balanced,
-      timeInterval: 30_000,
-      distanceInterval: 50,
+      timeInterval: config.LOCATION_UPDATE_INTERVAL_SECONDS * 1000,
+      // אפס בכוונה: מיקום גם כשעומדים. ראה LOCATION_UPDATE_INTERVAL_SECONDS.
+      distanceInterval: 0,
       pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.AutomotiveNavigation,
       showsBackgroundLocationIndicator: false,
@@ -140,6 +162,7 @@ export async function startTracking(): Promise<boolean> {
         killServiceOnDestroy: false,
       },
     });
+    await setItem(StorageKeys.LOCATION_OPTIONS_VERSION, LOCATION_OPTIONS_VERSION);
     return true;
   } catch (error) {
     logEvent(TripEventName.PERMISSION_CHANGED, `startTracking failed: ${String(error)}`);
@@ -149,7 +172,7 @@ export async function startTracking(): Promise<boolean> {
 
 export async function stopTracking(): Promise<void> {
   try {
-    const running = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK);
+    const running = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
     if (running) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   } catch {
     // כבר כבוי - לא קריטי.
@@ -158,7 +181,7 @@ export async function stopTracking(): Promise<void> {
 
 export async function isTracking(): Promise<boolean> {
   try {
-    return await TaskManager.isTaskRegisteredAsync(LOCATION_TASK);
+    return await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
   } catch {
     return false;
   }

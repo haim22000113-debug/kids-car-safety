@@ -23,6 +23,29 @@ export interface TripStartAssessment {
 }
 
 /**
+ * המהירות של דגימה: המדווחת מהטלפון אם יש, ואחרת מחושבת מהדגימה הקודמת.
+ *
+ * למה צריך לחשב בעצמנו: במצב חיסכון בסוללה (שבו האפליקציה עובדת) המיקום
+ * מגיע מרשת סלולרית ו-WiFi, ובמצב הזה הטלפון לרוב לא מדווח מהירות בכלל.
+ * כשהזיהוי הסתמך רק על המהירות המדווחת, הוא פשוט לא זיהה נסיעות - וכל
+ * מנגנון הגיבוי של זיהוי לפי מיקום היה מת בשקט.
+ *
+ * ההגנה שחייבת להישאר: מחשבים מהירות **רק כשהמרחק בין הנקודות גדול
+ * מחוסר הוודאות של שתיהן ביחד.** טלפון שעומד במקום "קופץ" עשרות מטרים
+ * בין דגימות; בלי הבדיקה הזו כל קפיצה כזו הייתה נראית כמו נסיעה, וחוזרות
+ * אזעקות השווא שהמוצר נבנה כדי למנוע.
+ */
+function effectiveSpeed(prev: GeoPoint | undefined, cur: GeoPoint): number | null {
+  if (typeof cur.speed === 'number' && cur.speed > 0) return cur.speed;
+  if (!prev) return null;
+  const seconds = (cur.timestamp - prev.timestamp) / 1000;
+  if (seconds <= 0) return null;
+  const meters = distanceMeters(prev, cur);
+  if (meters <= prev.accuracy + cur.accuracy) return null;
+  return meters / seconds;
+}
+
+/**
  * מעריך האם רצף הדגימות מתאר תחילת נסיעה.
  *
  * דורש שלושה תנאים במקביל - מרחק, זמן, ומספר דגימות במהירות נסיעה.
@@ -56,9 +79,10 @@ export function assessTripStart(samples: GeoPoint[]): TripStartAssessment {
     0
   );
 
-  const samplesAboveSpeed = usable.filter(
-    (p) => typeof p.speed === 'number' && p.speed! >= config.TRIP_SPEED_THRESHOLD_MPS
-  ).length;
+  const samplesAboveSpeed = usable.filter((p, i) => {
+    const speed = effectiveSpeed(usable[i - 1], p);
+    return speed !== null && speed >= config.TRIP_SPEED_THRESHOLD_MPS;
+  }).length;
 
   const meetsDistance = maxDistance >= config.TRIP_START_MIN_DISTANCE_METERS;
   const meetsDuration = durationSeconds >= config.TRIP_START_MIN_DURATION_SECONDS;
@@ -140,7 +164,18 @@ export function assessTripStop(samples: GeoPoint[]): TripStopAssessment {
 
   for (let i = usable.length - 2; i >= 0; i--) {
     const drift = distanceMeters(last, usable[i]);
-    if (drift > config.TRIP_STOP_MAX_DRIFT_METERS) break;
+    /**
+     * הסובלנות היא 30 מטר, או הדיוק של הדגימה הטובה מבין השתיים - הגדול
+     * מביניהם. בחניונים ובין בניינים הדיוק גרוע והמיקום "קופץ" יותר מ-30
+     * מטר גם כשהרכב עומד; עם סובלנות קבועה העצירה לא זוהתה שם בכלל.
+     * לוקחים את הדיוק הטוב מבין השתיים ולא את הגרוע, כדי שפקק איטי לא
+     * ייראה כמו עצירה.
+     */
+    const tolerance = Math.max(
+      config.TRIP_STOP_MAX_DRIFT_METERS,
+      Math.min(last.accuracy, usable[i].accuracy)
+    );
+    if (drift > tolerance) break;
     maxDrift = Math.max(maxDrift, drift);
     earliestStationary = usable[i];
   }

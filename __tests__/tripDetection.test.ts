@@ -106,3 +106,68 @@ describe('יציאה מאזור הרכב', () => {
     expect(hasLeftVehicleArea(stop, uncertain)).toBe(false);
   });
 });
+
+/**
+ * בדיקות שטח הראו שהזיהוי לפי מיקום כמעט לא עובד בפועל. שתי סיבות:
+ *
+ * 1. במצב חיסכון בסוללה הטלפון לרוב לא מדווח מהירות בכלל, והזיהוי הסתמך
+ *    רק על המהירות המדווחת - ולכן אף פעם לא זיהה נסיעה.
+ * 2. כשהרכב חונה, הדיוק בחניונים ובין בניינים גרוע, והמיקום "קופץ" יותר
+ *    מ-30 המטרים שזיהוי העצירה סבל - ולכן לא זיהה עצירה.
+ *
+ * הבדיקות כאן מוודאות שהתיקון עובד, ובעיקר שהוא לא מחזיר את אזעקות השווא
+ * על הליכה ועל רעידות GPS.
+ */
+describe('זיהוי כשהטלפון לא מדווח מהירות', () => {
+  const noSpeed = (points: ReturnType<typeof makeTrack>) =>
+    points.map((p) => ({ ...p, speed: null }));
+
+  it('מזהה נסיעה גם בלי מהירות מדווחת - מחשב אותה מהמרחק והזמן', () => {
+    const drive = noSpeed(makeTrack({ count: 8, intervalSeconds: 45, speedMps: 15, accuracy: 30 }));
+    expect(assessTripStart(drive).isTrip).toBe(true);
+  });
+
+  it('תרחיש 40 גם כאן: הליכה בלי מהירות מדווחת אינה נסיעה', () => {
+    const walk = noSpeed(makeTrack({ count: 25, intervalSeconds: 45, speedMps: 1.4, accuracy: 15 }));
+    const result = assessTripStart(walk);
+    expect(result.isTrip).toBe(false);
+    expect(result.isPossible).toBe(false);
+  });
+
+  it('רעידות GPS של טלפון שעומד במקום לא נחשבות לנסיעה', () => {
+    // קפיצות של 80 מטר כל 45 שניות = "1.8 מ"ש" - אבל הדיוק הוא 60 מטר,
+    // אז המרחק קטן מחוסר הוודאות של שתי הנקודות ואי אפשר לסמוך עליו.
+    const jitter = noSpeed(
+      makeStationary({ count: 12, intervalSeconds: 45, accuracy: 60, jitterMeters: 40 })
+    );
+    const result = assessTripStart(jitter);
+    expect(result.isTrip).toBe(false);
+    expect(result.isPossible).toBe(false);
+  });
+
+  it('קפיצה גדולה במיוחד של GPS לא נחשבת למהירות נסיעה', () => {
+    // נקודה אחת שקפצה 150 מטר בדיוק של 90 מטר - בתוך חוסר הוודאות.
+    const base = makeStationary({ count: 4, intervalSeconds: 45, accuracy: 90, jitterMeters: 0 });
+    base[2] = { ...base[2], ...pointNorthOf(ORIGIN, 150) };
+    expect(assessTripStart(noSpeed(base)).samplesAboveSpeed).toBe(0);
+  });
+});
+
+describe('זיהוי עצירה כשהדיוק גרוע', () => {
+  it('מזהה עצירה גם כשהמיקום "קופץ" יותר מ-30 מטר בגלל דיוק גרוע', () => {
+    const parked = makeStationary({ count: 5, intervalSeconds: 45, accuracy: 60, jitterMeters: 22 });
+    expect(assessTripStop(parked).hasStopped).toBe(true);
+  });
+
+  it('פקק איטי אינו עצירה', () => {
+    // 2.5 מ"ש = 9 קמ"ש. כל 45 שניות זה 112 מטר - יותר מכל סובלנות דיוק.
+    const traffic = makeTrack({ count: 6, intervalSeconds: 45, speedMps: 2.5, accuracy: 60 });
+    expect(assessTripStop(traffic).hasStopped).toBe(false);
+  });
+
+  it('עם דיוק טוב, הסובלנות נשארת 30 מטר כמו קודם', () => {
+    // תזוזה של 40 מטר בדיוק של 10 מטר - זו תזוזה אמיתית, לא רעש.
+    const creeping = makeStationary({ count: 5, intervalSeconds: 45, accuracy: 10, jitterMeters: 20 });
+    expect(assessTripStop(creeping).hasStopped).toBe(false);
+  });
+});

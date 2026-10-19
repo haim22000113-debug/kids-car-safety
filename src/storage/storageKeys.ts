@@ -13,4 +13,7 @@ export const StorageKeys = {
   WARNING_NOTIFICATION_IDS: '@kids_car_safety/warning_notification_ids',
   // יומן האבחון של צד ה-JavaScript. בלי מיקומים - ראה eventLog.ts.
   EVENT_LOG: '@kids_car_safety/event_log',
+  // באיזו גרסת הגדרות רץ מעקב המיקום. כשההגדרות משתנות, מעקב שכבר רץ
+  // ממשיך עם הישנות - צריך לעצור ולהפעיל מחדש. ראה locationService.
+  LOCATION_OPTIONS_VERSION: '@kids_car_safety/location_options_version',
 } as const;
