@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { AnalyticsEvent } from '../../src/analytics/events';
 import { cancelReminders } from '../../src/notifications/notificationService';
 import { isReminderDeadlinePassed } from '../../src/notifications/reminderLogic';
 import { callEmergencyContact } from '../../src/services/callService';
+import * as protectionService from '../../src/services/protectionService';
 
 // End Trip / Safety Check (סעיף 11-12) - המסך החשוב ביותר במוצר.
 export default function SafetyCheck() {
@@ -24,6 +25,8 @@ export default function SafetyCheck() {
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // נעילה מיידית מפני לחיצה כפולה - ref ולא state, שמתעדכן רק ברינדור הבא.
+  const confirmLock = useRef(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -66,12 +69,15 @@ export default function SafetyCheck() {
   }, [trip, thirdReminderMinutes, confirmed]);
 
   const onConfirm = async () => {
-    if (!trip || saving) return;
+    if (!trip || confirmLock.current) return;
+    confirmLock.current = true;
     setSaving(true);
     const now = new Date().toISOString();
     const updated: Trip = { ...trip, confirmedAt: now, status: 'CONFIRMED' };
     await TripStorage.saveTrip(updated);
     await cancelReminders(trip.reminderNotificationIds);
+    // ובעיקר: מבטלים גם שיחה לאיש הקשר שהמנגנון האוטומטי אולי תזמן.
+    await protectionService.confirmFromManualCheck();
     trackEvent(AnalyticsEvent.CHILDREN_CONFIRMED_OUT);
     setSaving(false);
     setConfirmed(true);

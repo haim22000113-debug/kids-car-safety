@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +23,8 @@ export default function ActiveTrip() {
   const [elapsed, setElapsed] = useState('00:00');
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // לחיצה כפולה על "סיים נסיעה" הייתה מתזמנת את התזכורות פעמיים.
+  const endLock = useRef(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -68,7 +70,8 @@ export default function ActiveTrip() {
   }, [trip]);
 
   const onEndTrip = async () => {
-    if (!trip || ending) return;
+    if (!trip || endLock.current) return;
+    endLock.current = true;
     setEnding(true);
     const now = new Date().toISOString();
 

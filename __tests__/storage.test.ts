@@ -102,9 +102,11 @@ describe('TripStorage', () => {
 
     const loaded = await TripStorage.getTripById(trip.id);
     expect(loaded?.status).toBe('SAFETY_CHECK_REQUIRED');
-    // עדיין "פעילה" מבחינת המערכת - עוד לא אושרה (סטטוס שונה מ-CONFIRMED).
-    const active = await TripStorage.getActiveTrip();
-    expect(active?.id).toBe(trip.id);
+    // הנסיעה הסתיימה ומחכה לאישור - היא לא "פעילה", ומוצגת בכרטיס האדום.
+    // (קודם הבדיקה הזו דרשה שהיא תיחשב פעילה. זה היה הבאג שבגללו נסיעה
+    // שמחכה לאישור נראתה במסך הבית כמו נסיעה רגילה.)
+    expect(await TripStorage.getActiveTrip()).toBeNull();
+    expect((await TripStorage.getPendingConfirmationTrip())?.id).toBe(trip.id);
   });
 
   it('מאשר שכל הילדים יצאו (בדיקה #6)', async () => {
@@ -155,5 +157,53 @@ describe('TripStorage', () => {
     const history = await TripStorage.getTripHistory();
     expect(history[0].id).toBe('trip_new');
     expect(history[1].id).toBe('trip_old');
+  });
+});
+
+/**
+ * הבחנה בין נסיעה פעילה לנסיעה שמחכה לאישור, ומניעת כפילויות.
+ *
+ * באג שנמצא בבדיקות שטח: נסיעה שהסתיימה ומחכה לאישור הוצגה כ"בנסיעה
+ * פעילה", ונסיעה ישנה שלא אושרה תפסה את מסך הבית לנצח.
+ */
+describe('נסיעה פעילה מול נסיעה שמחכה לאישור', () => {
+  const HOUR = 60 * 60 * 1000;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const NOW = Date.parse('2026-10-19T12:00:00Z');
+
+  it('נסיעה שמחכה לאישור היא לא "נסיעה פעילה"', async () => {
+    await TripStorage.saveTrip(makeTrip({ id: 'p', status: 'SAFETY_CHECK_REQUIRED', endTime: iso(NOW) }));
+    expect(await TripStorage.getActiveTrip()).toBeNull();
+    expect((await TripStorage.getPendingConfirmationTrip(NOW))?.id).toBe('p');
+  });
+
+  it('נסיעה ישנה שלא אושרה לא חוסמת נסיעה פעילה חדשה', async () => {
+    await TripStorage.saveTrip(
+      makeTrip({ id: 'old', status: 'SAFETY_CHECK_REQUIRED', startTime: iso(NOW - 48 * HOUR) })
+    );
+    await TripStorage.saveTrip(makeTrip({ id: 'new', status: 'TRIP_ACTIVE', startTime: iso(NOW) }));
+    expect((await TripStorage.getActiveTrip())?.id).toBe('new');
+  });
+
+  it('כשיש כמה נסיעות פעילות, מחזיר את החדשה ולא את הישנה', async () => {
+    await TripStorage.saveTrip(makeTrip({ id: 'a', status: 'TRIP_ACTIVE', startTime: iso(NOW - HOUR) }));
+    await TripStorage.saveTrip(makeTrip({ id: 'b', status: 'TRIP_ACTIVE', startTime: iso(NOW) }));
+    expect((await TripStorage.getActiveTrip())?.id).toBe('b');
+  });
+
+  it('נסיעה שמחכה לאישור יותר מ-6 שעות לא מוצגת בכרטיס, אבל נשארת בהיסטוריה', async () => {
+    await TripStorage.saveTrip(
+      makeTrip({ id: 'stale', status: 'SAFETY_CHECK_REQUIRED', startTime: iso(NOW - 10 * HOUR), endTime: iso(NOW - 9 * HOUR) })
+    );
+    expect(await TripStorage.getPendingConfirmationTrip(NOW)).toBeNull();
+    expect((await TripStorage.getTripHistory()).map((t) => t.id)).toContain('stale');
+  });
+
+  it('שמירות בו-זמניות לא דורסות זו את זו', async () => {
+    // בלי התור, כל השמירות היו קוראות רשימה ריקה ורק האחרונה הייתה נשארת.
+    await Promise.all(
+      Array.from({ length: 8 }, (_, i) => TripStorage.saveTrip(makeTrip({ id: `t${i}` })))
+    );
+    expect((await TripStorage.getTripHistory()).length).toBe(8);
   });
 });

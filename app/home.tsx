@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,11 +12,22 @@ import { AnalyticsEvent } from '../src/analytics/events';
 import { formatTripSummary } from '../src/utils/format';
 import { scheduleTripStartNotifications } from '../src/notifications/notificationService';
 import * as protectionService from '../src/services/protectionService';
+import * as tripStateService from '../src/services/tripStateService';
 
 // Home (סעיף 8).
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  /** נסיעה ידנית שהסתיימה ומחכה לאישור שהילדים יצאו. */
+  const [pendingTrip, setPendingTrip] = useState<Trip | null>(null);
+  /** המנגנון האוטומטי באמצע אזהרה שעוד לא אושרה. */
+  const [autoNeedsAttention, setAutoNeedsAttention] = useState(false);
+  /**
+   * נעילה מפני לחיצה כפולה. ref ולא state, בכוונה: state מתעדכן רק
+   * ברינדור הבא, ולחיצה כפולה מהירה עוברת את הבדיקה פעמיים ויוצרת שתי
+   * נסיעות. ref מתעדכן מיד.
+   */
+  const startLock = useRef(false);
   const [recentTrips, setRecentTrips] = useState<Trip[]>([]);
   const [notWithMeVisible, setNotWithMeVisible] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -28,11 +39,14 @@ export default function Home() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [loadedUser, active, history] = await Promise.all([
+      const [loadedUser, active, pending, history] = await Promise.all([
         UserStorage.getUser(),
         TripStorage.getActiveTrip(),
+        TripStorage.getPendingConfirmationTrip(),
         TripStorage.getTripHistory(),
       ]);
+      setPendingTrip(pending);
+      setAutoNeedsAttention(tripStateService.needsAttention());
 
       if (loadedUser) {
         // איפוס אוטומטי של "הילדים לא איתי" אם עבר יום (סעיף 16 - "לא להישאר פעיל בטעות").
@@ -57,7 +71,8 @@ export default function Home() {
       }
 
       setActiveTrip(active);
-      setRecentTrips(history.slice(0, 3));
+      // שתיים בלבד: מסך הבית הוא לפעולה, לא לארכיון. הכל נמצא בהיסטוריה.
+      setRecentTrips(history.slice(0, 2));
       setLoading(false);
 
       // מדליק את ההגנה האוטומטית ומדווח מה באמת הופעל. אם ההרשאות
@@ -84,8 +99,26 @@ export default function Home() {
   );
 
   const onStartTrip = async () => {
-    if (!user || starting) return;
+    if (!user || startLock.current) return;
+    startLock.current = true;
     setStarting(true);
+    try {
+      await startTripLocked(user);
+    } finally {
+      startLock.current = false;
+      setStarting(false);
+    }
+  };
+
+  const startTripLocked = async (user: User) => {
+    // בדיקה מחדש מול האחסון ולא מול המסך: המסך יכול להיות מלפני דקה.
+    // אם כבר יש נסיעה פעילה - הולכים אליה, לא יוצרים עוד אחת.
+    const existing = await TripStorage.getActiveTrip();
+    if (existing) {
+      router.navigate({ pathname: '/trip/active', params: { tripId: existing.id } });
+      return;
+    }
+
     const now = new Date().toISOString();
     const notWithMe = user.settings.childrenNotWithMe;
     const skip = notWithMe.active;
@@ -118,8 +151,7 @@ export default function Home() {
       if (updatedUser) setUser(updatedUser);
     }
 
-    setStarting(false);
-    router.push({ pathname: '/trip/active', params: { tripId: trip.id } });
+    router.navigate({ pathname: '/trip/active', params: { tripId: trip.id } });
   };
 
   const onNotWithMeOption = async (scope: 'trip' | 'day' | null) => {
@@ -199,9 +231,33 @@ export default function Home() {
           ) : null}
         </View>
 
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>{activeTrip ? 'בנסיעה פעילה' : 'לא נמצאים בנסיעה'}</Text>
-        </View>
+        {pendingTrip || autoNeedsAttention ? (
+          // הכרטיס האדום. קודם נסיעה שמחכה לאישור הוצגה כ"בנסיעה פעילה",
+          // באותו עיצוב כמו כל דבר אחר - וזה המצב היחיד במסך שבאמת דורש
+          // פעולה מההורה.
+          <Pressable
+            style={styles.pendingCard}
+            onPress={() =>
+              pendingTrip
+                ? router.navigate({ pathname: '/trip/safety-check', params: { tripId: pendingTrip.id } })
+                : router.navigate('/warning')
+            }
+            accessibilityRole="button"
+            accessibilityLabel="נסיעה ממתינה לאישור. לחץ לאישור"
+          >
+            <Text style={styles.pendingTitle}>⚠️ נסיעה ממתינה לאישור</Text>
+            <Text style={styles.pendingBody}>בדקת שכל הילדים יצאו מהרכב?</Text>
+            <View style={styles.pendingButton}>
+              <Text style={styles.pendingButtonText}>אשר עכשיו</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={[styles.statusBadge, activeTrip ? styles.statusActive : null]}>
+            <Text style={[styles.statusText, activeTrip ? styles.statusActiveText : null]}>
+              {activeTrip ? '🚗 בנסיעה פעילה' : 'לא נמצאים בנסיעה'}
+            </Text>
+          </View>
+        )}
 
         {notWithMeActive ? (
           <Pressable
@@ -219,21 +275,27 @@ export default function Home() {
         ) : null}
 
         {recentTrips.length > 0 ? (
-          <View style={styles.history}>
-            <Text style={styles.historyTitle}>פעולות אחרונות</Text>
-            {recentTrips.map((trip) => (
-              <Text key={trip.id} style={styles.historyRow}>
-                {formatTripSummary(trip)} · {trip.status === 'CONFIRMED' ? '✓ כל הילדים יצאו' : 'ממתין לאישור'}
-              </Text>
-            ))}
-            <Pressable
-              onPress={() => router.push('/history')}
-              accessibilityRole="button"
-              accessibilityLabel="לכל ההיסטוריה"
-            >
-              <Text style={styles.historyLink}>לכל ההיסטוריה</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            style={styles.history}
+            onPress={() => router.push('/history')}
+            accessibilityRole="button"
+            accessibilityLabel="פעולות אחרונות. לחץ לכל ההיסטוריה"
+          >
+            {recentTrips.map((trip) => {
+              const confirmed = trip.status === 'CONFIRMED';
+              const live = trip.status === 'TRIP_ACTIVE';
+              return (
+                <Text
+                  key={trip.id}
+                  style={[styles.historyRow, !confirmed && !live ? styles.historyRowPending : null]}
+                  numberOfLines={1}
+                >
+                  {formatTripSummary(trip)} · {confirmed ? '✓ אושר' : live ? 'בנסיעה' : '⚠️ לא אושר'}
+                </Text>
+              );
+            })}
+            <Text style={styles.historyLink}>לכל ההיסטוריה ←</Text>
+          </Pressable>
         ) : null}
       </View>
 
@@ -243,7 +305,7 @@ export default function Home() {
           loading={starting}
           onPress={
             activeTrip
-              ? () => router.push({ pathname: '/trip/active', params: { tripId: activeTrip.id } })
+              ? () => router.navigate({ pathname: '/trip/active', params: { tripId: activeTrip.id } })
               : onStartTrip
           }
         />
@@ -363,6 +425,51 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
+    fontWeight: theme.fontWeight.medium,
+  },
+  statusActive: {
+    backgroundColor: '#EBF4FF',
+    borderColor: theme.colors.primary,
+  },
+  statusActiveText: {
+    color: theme.colors.primary,
+  },
+  pendingCard: {
+    width: '100%',
+    marginTop: theme.spacing.lg,
+    backgroundColor: '#FDECEA',
+    borderColor: theme.colors.danger,
+    borderWidth: 2,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  pendingTitle: {
+    fontSize: theme.typography.subtitle,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.danger,
+    textAlign: 'center',
+  },
+  pendingBody: {
+    fontSize: theme.typography.body,
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  pendingButton: {
+    marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.danger,
+    borderRadius: theme.radius.pill,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xl,
+  },
+  pendingButtonText: {
+    color: theme.colors.textOnPrimary,
+    fontSize: theme.typography.body,
+    fontWeight: theme.fontWeight.bold,
+  },
+  historyRowPending: {
+    color: theme.colors.danger,
     fontWeight: theme.fontWeight.medium,
   },
   notWithMeBanner: {

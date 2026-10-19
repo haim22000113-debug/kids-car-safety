@@ -20,7 +20,7 @@ function tripStatusLabel(trip: Trip): string {
     return '✓ כל הילדים יצאו';
   }
   if (trip.status === 'TRIP_ACTIVE') return 'בנסיעה פעילה';
-  return 'ממתין לאישור';
+  return '⚠️ לא אושר שהילדים יצאו';
 }
 
 export default function History() {
@@ -64,7 +64,12 @@ export default function History() {
           keyExtractor={(t) => t.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <View style={styles.row}>
+            <View
+              style={[
+                styles.row,
+                item.status !== 'CONFIRMED' && item.status !== 'TRIP_ACTIVE' ? styles.rowPending : null,
+              ]}
+            >
               <View style={styles.rowHeader}>
                 <Text style={styles.rowDate}>{formatDateTime(item.startTime)}</Text>
                 {item.endTime ? (
@@ -73,7 +78,14 @@ export default function History() {
                   </Text>
                 ) : null}
               </View>
-              <Text style={styles.rowStatus}>{tripStatusLabel(item)}</Text>
+              <Text
+                style={[
+                  styles.rowStatus,
+                  item.status !== 'CONFIRMED' && item.status !== 'TRIP_ACTIVE' ? styles.rowStatusPending : null,
+                ]}
+              >
+                {tripStatusLabel(item)}
+              </Text>
             </View>
           )}
         />
@@ -125,6 +137,15 @@ const styles = StyleSheet.create({
   rowDuration: {
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
+  },
+  rowPending: {
+    borderColor: theme.colors.danger,
+    borderWidth: 2,
+    backgroundColor: '#FDECEA',
+  },
+  rowStatusPending: {
+    color: theme.colors.danger,
+    fontWeight: theme.fontWeight.bold,
   },
   rowStatus: {
     fontSize: theme.typography.caption,

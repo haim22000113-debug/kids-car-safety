@@ -195,6 +195,23 @@ export async function handOffToManualCheck(): Promise<void> {
   await tripStateService.reset();
 }
 
+/**
+ * ההורה אישר במסך הבדיקה של הנסיעה הידנית שהילדים יצאו.
+ *
+ * באג שנמצא: האישור הידני לא נגע במנגנון האוטומטי. אם בינתיים זיהוי
+ * התנועה של גוגל דיווח (באיחור) על יציאה מהרכב, הצד הנייטיב כבר תזמן
+ * שיחה לאיש הקשר - וההורה, שאישר שהכל בסדר, היה מקבל אחרי שתי דקות
+ * שיחה לאמא. אישור אחד חייב לסגור הכל.
+ */
+export async function confirmFromManualCheck(): Promise<void> {
+  vehicleDetection.cancelEscalation();
+  const state = tripStateService.getSnapshot().state;
+  // באמצע נסיעה לא סוגרים את המנגנון האוטומטי - הוא רשת הביטחון.
+  if (state !== TripState.ACTIVE && state !== TripState.POSSIBLE_TRIP) {
+    await tripStateService.confirmSafe();
+  }
+}
+
 export function isStarted(): boolean {
   return started;
 }
