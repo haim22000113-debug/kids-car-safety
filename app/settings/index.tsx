@@ -20,6 +20,16 @@ import {
   DISCLAIMER_EMERGENCY,
 } from '../../src/content/disclaimer';
 
+/** קטגוריה במסך ההגדרות: כותרת ומסגרת, כדי שההפרדה תהיה ברורה במבט. */
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
 interface ChildDraft {
   id: string;
   name: string;
@@ -185,140 +195,148 @@ export default function Settings() {
 
   const notWithMeActive = user.settings.childrenNotWithMe.active;
 
+  /**
+   * האם יש שינויים שלא נשמרו.
+   *
+   * עד עכשיו כפתור השמירה ישב בתחתית מסך ארוך, וההורה היה צריך לגלול עד
+   * הסוף אחרי כל שינוי - ובלי שום סימן שמשהו עוד לא נשמר. הורה ששינה
+   * משהו ויצא בלי לגלול איבד את השינוי בלי לדעת. עכשיו הכפתור קבוע
+   * בתחתית המסך, ואומר במפורש אם יש מה לשמור.
+   */
+  const reminders = user.settings.reminders;
+  const isDirty =
+    name.trim() !== user.name ||
+    JSON.stringify(children.map((c) => [c.id, c.name.trim(), c.age])) !==
+      JSON.stringify(user.children.map((c) => [c.id, c.name, String(c.age)])) ||
+    firstMin !== String(reminders.firstReminderMinutes) ||
+    secondMin !== String(reminders.secondReminderMinutes) ||
+    thirdMin !== String(reminders.thirdReminderMinutes) ||
+    tripActiveMin !== String(getTripActiveReminderMinutes(reminders)) ||
+    soundEnabled !== reminders.soundEnabled ||
+    autoProtection !== isAutoProtectionEnabled(user.settings);
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScreenHeader title="הגדרות" fallback="/home" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-
-        <Text style={styles.sectionTitle}>השם שלך</Text>
-        <TextField label="שם פרטי" value={name} onChangeText={setName} />
-
-        <Text style={styles.sectionTitle}>ילדים</Text>
-        {children.map((child) => (
-          <View key={child.id} style={styles.childBlock}>
-            <TextField
-              label="שם"
-              value={child.name}
-              onChangeText={(text) => updateChild(child.id, { name: text })}
-            />
-            <TextField
-              label="גיל"
-              value={child.age}
-              onChangeText={(text) => updateChild(child.id, { age: text.replace(/[^0-9]/g, '') })}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-            <Button title="הסר ילד" variant="ghost" onPress={() => removeChild(child.id)} />
-          </View>
-        ))}
-        <Button title="+ הוסף ילד" variant="ghost" onPress={addChild} style={styles.addChildButton} />
-
-        <Text style={styles.sectionTitle}>איש קשר לחירום</Text>
-        <Text style={styles.infoText}>
-          {user.emergencyContact
-            ? `${user.emergencyContact.name} · ${user.emergencyContact.phone}`
-            : 'לא הוגדר איש קשר'}
-        </Text>
-        <Button
-          title="ערוך איש קשר"
-          variant="ghost"
-          onPress={() => router.push('/settings/emergency-contact')}
-        />
-
-        <Text style={styles.sectionTitle}>זמני תזכורות (בדקות מסיום הנסיעה)</Text>
-        <TextField
-          label="תזכורת ראשונה"
-          value={firstMin}
-          onChangeText={(t) => setFirstMin(t.replace(/[^0-9]/g, ''))}
-          keyboardType="number-pad"
-          maxLength={2}
-        />
-        <TextField
-          label="תזכורת שנייה"
-          value={secondMin}
-          onChangeText={(t) => setSecondMin(t.replace(/[^0-9]/g, ''))}
-          keyboardType="number-pad"
-          maxLength={2}
-        />
-        <TextField
-          label="תזכורת שלישית"
-          value={thirdMin}
-          onChangeText={(t) => setThirdMin(t.replace(/[^0-9]/g, ''))}
-          keyboardType="number-pad"
-          maxLength={2}
-        />
-
-        <Text style={styles.sectionTitle}>תזכורת בזמן נסיעה</Text>
-        <Text style={styles.infoText}>
-          עם תחילת נסיעה תישלח התראה לטלפון, ואם לא תסיים את הנסיעה תוך הזמן הזה נזכיר לך שוב —
-          למקרה שיצאת מהרכב ושכחת ללחוץ &quot;סיים נסיעה&quot;.
-        </Text>
-        <TextField
-          label="תזכורת אם הנסיעה עדיין פעילה (בדקות)"
-          value={tripActiveMin}
-          onChangeText={(t) => setTripActiveMin(t.replace(/[^0-9]/g, ''))}
-          keyboardType="number-pad"
-          maxLength={3}
-        />
-
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>צלילי התראות</Text>
-          <Switch value={soundEnabled} onValueChange={setSoundEnabled} />
-        </View>
-
         {notWithMeActive ? (
-          <>
-            <Text style={styles.sectionTitle}>מצב &quot;הילדים לא איתי&quot;</Text>
-            <Text style={styles.infoText}>
-              פעיל כרגע ({user.settings.childrenNotWithMe.scope === 'day' ? 'עד סוף היום' : 'לנסיעה הבאה'})
+          <View style={styles.notWithMeBox}>
+            <Text style={styles.notWithMeText}>
+              מצב &quot;הילדים לא איתי&quot; פעיל (
+              {user.settings.childrenNotWithMe.scope === 'day' ? 'עד סוף היום' : 'לנסיעה הבאה'})
             </Text>
             <Button title="בטל מצב" variant="ghost" onPress={cancelNotWithMe} />
-          </>
-        ) : null}
-
-        <Text style={styles.sectionTitle}>ההגנה האוטומטית</Text>
-        <Text style={styles.infoText}>
-          כשההגנה דלוקה, האפליקציה מזהה לבד שנסיעה הסתיימה ושואלת אותך אם כל הילדים יצאו — בלי
-          שתצטרך ללחוץ על כלום. כיבוי ישאיר אותך עם המצב הידני בלבד.
-        </Text>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>הגנה אוטומטית</Text>
-          <Switch
-            value={autoProtection}
-            onValueChange={setAutoProtection}
-            accessibilityLabel="הפעל או כבה הגנה אוטומטית"
-          />
-        </View>
-        {!autoProtection ? (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              ההגנה האוטומטית תהיה כבויה. תקבל תזכורות רק על נסיעות שתפעיל ידנית.
-            </Text>
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>הרשאות</Text>
-        <Button
-          title="הגדרות ההגנה האוטומטית"
-          variant="ghost"
-          onPress={() => router.push('/permissions')}
-        />
-        <Button
-          title="פתח הגדרות התראות במכשיר"
-          variant="ghost"
-          onPress={() => Linking.openSettings()}
-        />
+        <Card title="👤 השם שלך">
+          <TextField label="שם פרטי" value={name} onChangeText={setName} />
+        </Card>
 
-        {isDiagnosticsEnabled() ? (
-          <>
-            <Text style={styles.sectionTitle}>אבחון</Text>
-            <Text style={styles.infoText}>
-              מציג מה המערכת מזהה בזמן אמת, ומאפשר להריץ תרחיש מלא בסימולציה בלי לצאת לכביש.
-            </Text>
+        <Card title="👧 ילדים">
+          {children.map((child) => (
+            <View key={child.id} style={styles.childBlock}>
+              <TextField
+                label="שם"
+                value={child.name}
+                onChangeText={(text) => updateChild(child.id, { name: text })}
+              />
+              <TextField
+                label="גיל"
+                value={child.age}
+                onChangeText={(text) => updateChild(child.id, { age: text.replace(/[^0-9]/g, '') })}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+              <Button title="הסר ילד" variant="ghost" onPress={() => removeChild(child.id)} />
+            </View>
+          ))}
+          <Button title="+ הוסף ילד" variant="ghost" onPress={addChild} style={styles.addChildButton} />
+        </Card>
+
+        <Card title="📞 איש קשר לחירום">
+          <Text style={styles.infoText}>
+            {user.emergencyContact
+              ? `${user.emergencyContact.name} · ${user.emergencyContact.phone}`
+              : 'לא הוגדר איש קשר. בלי איש קשר לא תהיה שיחה אוטומטית.'}
+          </Text>
+          <Button
+            title={user.emergencyContact ? 'ערוך איש קשר' : 'הוסף איש קשר'}
+            variant="ghost"
+            onPress={() => router.push('/settings/emergency-contact')}
+          />
+        </Card>
+
+        <Card title="🔔 תזכורות">
+          <Text style={styles.subTitle}>תזכורות בנסיעה ידנית (דקות מסיום הנסיעה)</Text>
+          <TextField
+            label="תזכורת ראשונה"
+            value={firstMin}
+            onChangeText={(t) => setFirstMin(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            maxLength={2}
+          />
+          <TextField
+            label="תזכורת שנייה"
+            value={secondMin}
+            onChangeText={(t) => setSecondMin(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            maxLength={2}
+          />
+          <TextField
+            label="תזכורת שלישית"
+            value={thirdMin}
+            onChangeText={(t) => setThirdMin(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            maxLength={2}
+          />
+
+          <Text style={styles.subTitle}>תזכורת אם שכחת לסיים נסיעה</Text>
+          <TextField
+            label="אחרי כמה דקות (מתחילת הנסיעה)"
+            value={tripActiveMin}
+            onChangeText={(t) => setTripActiveMin(t.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            maxLength={3}
+          />
+
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>צלילי התראות</Text>
+            <Switch value={soundEnabled} onValueChange={setSoundEnabled} />
+          </View>
+        </Card>
+
+        <Card title="🛡️ הגנה והרשאות">
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>הגנה אוטומטית</Text>
+            <Switch
+              value={autoProtection}
+              onValueChange={setAutoProtection}
+              accessibilityLabel="הפעל או כבה הגנה אוטומטית"
+            />
+          </View>
+          <Text style={styles.infoText}>
+            מזהה לבד שנסיעה הסתיימה ושואלת אם כל הילדים יצאו, בלי שתצטרך ללחוץ על כלום.
+          </Text>
+          {!autoProtection ? (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>
+                ההגנה האוטומטית תהיה כבויה. תקבל תזכורות רק על נסיעות שתפעיל ידנית.
+              </Text>
+            </View>
+          ) : null}
+          <Button title="בדיקת הרשאות" variant="ghost" onPress={() => router.push('/permissions')} />
+          <Button
+            title="הגדרות התראות במכשיר"
+            variant="ghost"
+            onPress={() => Linking.openSettings()}
+          />
+          {isDiagnosticsEnabled() ? (
             <Button title="מסך אבחון" variant="ghost" onPress={() => router.push('/debug')} />
-          </>
-        ) : null}
+          ) : null}
+        </Card>
 
+        {/* מידע - לא הגדרות. בתחתית, כדי שלא יפריד בין ההגדרות עצמן. */}
         <Text style={styles.sectionTitle}>פרטיות</Text>
         <Text style={styles.infoText}>
           כל הנתונים שלך (הילדים, הנסיעות, איש הקשר) נשמרים מקומית על המכשיר בלבד ולא נשלחים לשום שרת
@@ -337,10 +355,6 @@ export default function Settings() {
           <Text style={styles.emergencyText}>{DISCLAIMER_EMERGENCY}</Text>
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {saved ? <Text style={styles.savedText}>נשמר בהצלחה</Text> : null}
-        <Button title="שמור שינויים" onPress={onSave} loading={saving} style={styles.saveButton} />
-
         <Text style={styles.versionText}>
           גרסה {Constants.expoConfig?.version ?? '—'}
         </Text>
@@ -348,6 +362,19 @@ export default function Settings() {
         <Text style={[styles.sectionTitle, styles.dangerTitle]}>איזור מסוכן</Text>
         <Button title="מחק את כל הנתונים" variant="ghost" onPress={onResetData} style={styles.dangerButton} />
       </ScrollView>
+
+      {/* כפתור השמירה קבוע בתחתית - תמיד גלוי, באזור האגודל. */}
+      <View style={styles.saveBar}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {!error && isDirty ? <Text style={styles.dirtyText}>יש שינויים שלא נשמרו</Text> : null}
+        {!error && !isDirty && saved ? <Text style={styles.savedText}>✓ נשמר</Text> : null}
+        <Button
+          title={isDirty ? 'שמור שינויים' : 'אין שינויים לשמירה'}
+          onPress={onSave}
+          loading={saving}
+          disabled={!isDirty}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -359,13 +386,56 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
   },
-  pageTitle: {
-    fontSize: theme.typography.title,
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  cardTitle: {
+    fontSize: theme.typography.subtitle,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textPrimary,
+    textAlign: 'right',
+    marginBottom: theme.spacing.sm,
+  },
+  subTitle: {
+    fontSize: theme.typography.body,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.textSecondary,
+    textAlign: 'right',
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  saveBar: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+  },
+  dirtyText: {
+    color: theme.colors.warning,
+    fontSize: theme.typography.caption,
     textAlign: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xs,
+    fontWeight: theme.fontWeight.medium,
+  },
+  notWithMeBox: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  notWithMeText: {
+    color: theme.colors.warning,
+    textAlign: 'right',
+    fontSize: theme.typography.body,
   },
   sectionTitle: {
     fontSize: theme.typography.subtitle,
@@ -421,16 +491,13 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     fontSize: theme.typography.body,
     textAlign: 'center',
-    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xs,
   },
   savedText: {
     color: theme.colors.success,
     fontSize: theme.typography.body,
     textAlign: 'center',
-    marginTop: theme.spacing.lg,
-  },
-  saveButton: {
-    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xs,
   },
   dangerButton: {
     marginBottom: theme.spacing.xl,
