@@ -11,4 +11,6 @@ export const StorageKeys = {
   // מזהי ההתראות של שרשרת האזהרה. חייבים לשרוד סגירה של האפליקציה,
   // אחרת אין דרך לבטל אותן כשההורה מאשר והוא יקבל אזהרות אחרי שכבר בדק.
   WARNING_NOTIFICATION_IDS: '@kids_car_safety/warning_notification_ids',
+  // יומן האבחון של צד ה-JavaScript. בלי מיקומים - ראה eventLog.ts.
+  EVENT_LOG: '@kids_car_safety/event_log',
 } as const;

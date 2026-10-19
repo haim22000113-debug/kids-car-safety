@@ -57,14 +57,17 @@ object VehicleTracking {
         .requestActivityTransitionUpdates(buildRequest(), pendingIntent(context))
         .addOnSuccessListener {
           VehicleDetectionStore.setTracking(context, true)
+          VehicleDetectionStore.appendHistory(context, "REGISTER_OK")
           onResult(true, null)
         }
         .addOnFailureListener { error ->
           VehicleDetectionStore.setTracking(context, false)
+          VehicleDetectionStore.appendHistory(context, "REGISTER_FAIL", error.message ?: "")
           onResult(false, error)
         }
     } catch (e: SecurityException) {
       VehicleDetectionStore.setTracking(context, false)
+      VehicleDetectionStore.appendHistory(context, "REGISTER_NO_PERMISSION")
       onResult(false, null)
     }
   }

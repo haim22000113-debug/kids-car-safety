@@ -76,5 +76,14 @@ class VehicleDetectionModule : Module() {
     Function("clearPendingEvent") {
       VehicleDetectionStore.clearEvent(context)
     }
+
+    /** היסטוריית האבחון, כמחרוזת JSON. ראה VehicleDetectionStore.appendHistory. */
+    Function("getHistory") {
+      VehicleDetectionStore.getHistory(context)
+    }
+
+    Function("clearHistory") {
+      VehicleDetectionStore.clearHistory(context)
+    }
   }
 }

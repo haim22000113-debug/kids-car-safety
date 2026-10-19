@@ -20,6 +20,15 @@ interface VehicleDetectionNativeModule extends NativeModule {
   isTracking(): boolean;
   getPendingEvent(): PendingVehicleEvent | null;
   clearPendingEvent(): void;
+  getHistory(): string;
+  clearHistory(): void;
+}
+
+/** רשומה ביומן האבחון הנייטיב. אין בה מיקום - רק סוג, שעה ופרטים טכניים. */
+export interface NativeHistoryEntry {
+  type: string;
+  at: number;
+  detail: string;
 }
 
 /**
@@ -106,6 +115,29 @@ export function getPendingEvent(): PendingVehicleEvent | null {
     return native!.getPendingEvent();
   } catch {
     return null;
+  }
+}
+
+/**
+ * יומן האבחון של הצד הנייטיב: כל מעבר שגוגל שלחה, כמה זמן אחרי שקרה
+ * בפועל, והאם ההתראה נשלחה. שורד סגירה של האפליקציה ואתחול.
+ */
+export function getHistory(): NativeHistoryEntry[] {
+  if (!isSupported()) return [];
+  try {
+    const parsed = JSON.parse(native!.getHistory());
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearHistory(): void {
+  if (!isSupported()) return;
+  try {
+    native!.clearHistory();
+  } catch {
+    // לא קריטי.
   }
 }
 

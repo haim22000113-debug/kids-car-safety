@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Button } from '../src/components/Button';
@@ -28,11 +28,13 @@ export default function Debug() {
   const [permissions, setPermissions] = useState<locationService.PermissionSnapshot | null>(null);
   const [tracking, setTracking] = useState(false);
   const [geofence, setGeofence] = useState(false);
+  const [nativeHistory, setNativeHistory] = useState<vehicleDetection.NativeHistoryEntry[]>([]);
 
   const refresh = useCallback(async () => {
     setPermissions(await locationService.getPermissions());
     setTracking(await locationService.isTracking());
     setGeofence(await isGeofenceActive());
+    setNativeHistory(vehicleDetection.getHistory().slice().reverse());
   }, []);
 
   useEffect(() => {
@@ -86,10 +88,39 @@ export default function Debug() {
   const simulateVehicleExit = () =>
     tripStateService.onVehicleExit(locationService.getLastSample());
 
+  /**
+   * שולח את שני היומנים כטקסט, כדי שאפשר יהיה לאבחן תקלה שקרתה בשטח.
+   * Share המובנה ולא ספרייה חיצונית: עובד גם בלי סים, דרך מייל, טלגרם או
+   * Drive. אין ביומנים מיקומים - רק אירועים ושעות.
+   */
+  const shareLog = async () => {
+    const fmt = (t: number) => new Date(t).toLocaleString('he-IL');
+    const lines = [
+      'כולם איתי - יומן אבחון',
+      'נוצר: ' + fmt(Date.now()),
+      'State: ' + snapshot.state,
+      'מעקב מיקום: ' + (tracking ? 'פעיל' : 'כבוי'),
+      'מיקום ברקע: ' + (permissions?.background ? 'ניתנה' : 'חסרה'),
+      'זיהוי תנועה: ' + (vehicleDetection.isSupported() ? (vehicleDetection.isTracking() ? 'פעיל' : 'כבוי') : 'לא נתמך'),
+      '',
+      '=== חיישנים (נייטיב) ===',
+      ...nativeHistory.map((e) => fmt(e.at) + ' | ' + e.type + (e.detail ? ' | ' + e.detail : '')),
+      '',
+      '=== אפליקציה ===',
+      ...events.map((e) => fmt(e.at) + ' | ' + e.name + (e.detail ? ' | ' + e.detail : '')),
+    ];
+    try {
+      await Share.share({ message: lines.join(String.fromCharCode(10)) });
+    } catch {
+      // ההורה ביטל את השיתוף - לא קריטי.
+    }
+  };
+
   const resetAll = async () => {
     await tripStateService.reset();
     locationService.clearSamples();
     clearEvents();
+    vehicleDetection.clearHistory();
     await refresh();
   };
 
@@ -160,6 +191,22 @@ export default function Debug() {
           onPress={() => router.push('/warning')}
         />
 
+        <Text style={styles.section}>חיישנים (נייטיב)</Text>
+        <Text style={styles.empty}>
+          כל מה שגוגל דיווחה על כניסה ויציאה מרכב. delay = כמה שניות אחרי שזה קרה בפועל
+          הדיווח הגיע. שורד סגירה של האפליקציה.
+        </Text>
+        {nativeHistory.length === 0 ? (
+          <Text style={styles.empty}>אין רישומים עדיין</Text>
+        ) : (
+          nativeHistory.slice(0, 40).map((e, index) => (
+            <Text key={`n-${e.at}-${index}`} style={styles.event}>
+              {new Date(e.at).toLocaleString('he-IL')} · {e.type}
+              {e.detail ? ` — ${e.detail}` : ''}
+            </Text>
+          ))
+        )}
+
         <Text style={styles.section}>יומן אירועים</Text>
         {events.length === 0 ? (
           <Text style={styles.empty}>אין אירועים עדיין</Text>
@@ -172,7 +219,8 @@ export default function Debug() {
           ))
         )}
 
-        <Button title="רענן" onPress={refresh} style={styles.refresh} />
+        <Button title="📤 שתף יומן" onPress={shareLog} style={styles.refresh} />
+        <Button title="רענן" variant="ghost" onPress={refresh} style={styles.refresh} />
       </ScrollView>
     </SafeAreaView>
   );

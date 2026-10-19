@@ -28,6 +28,7 @@ class BootReceiver : BroadcastReceiver() {
       action == Intent.ACTION_MY_PACKAGE_REPLACED
 
     if (!isBootAction) return
+    VehicleDetectionStore.appendHistory(context, "BOOT", action.substringAfterLast('.'))
     if (!VehicleDetectionStore.isTracking(context)) return
 
     // רישום מחדש. אם ההרשאה נשללה בינתיים זה ייכשל בשקט, וה-JavaScript

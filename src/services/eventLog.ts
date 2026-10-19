@@ -1,11 +1,19 @@
 import { config, APP_ENV } from '../config';
+import { getItem, setItem, removeItem } from '../storage/StorageService';
+import { StorageKeys } from '../storage/storageKeys';
 
 /**
  * יומן אירועים פנימי (סעיף 28).
  *
- * שני תפקידים: לאפשר לי לאבחן תקלות שקרו בשטח בלי לשחזר אותן, ולהזין
- * את מסך ה-Debug. נשמר בזיכרון בלבד ומוגבל בגודל - לא כותבים לדיסק
- * יומן מיקומים, כי זה סותר את סעיף 24.
+ * שני תפקידים: לאפשר לאבחן תקלות שקרו בשטח בלי לשחזר אותן, ולהזין את
+ * מסך ה-Debug.
+ *
+ * **נשמר לדיסק.** קודם היומן ישב בזיכרון בלבד, ובבדיקות שטח זה התגלה
+ * כחסר תועלת בדיוק ברגע שהוא נחוץ: הזיהוי עבד "לפעמים", וכשהוא נכשל
+ * אנדרואיד כבר סגר את האפליקציה והיומן נמחק יחד איתה.
+ *
+ * הכלל של סעיף 24 נשמר: **לא נכתבים לכאן מיקומים.** רק שמות אירועים,
+ * שעות ופרטים טכניים. מי שמוסיף logEvent עם קואורדינטות - שובר את זה.
  */
 
 export const TripEventName = {
@@ -53,6 +61,29 @@ export function logEvent(name: TripEventNameType, detail?: string): void {
   }
 
   listeners.forEach((listener) => listener(entries));
+
+  // נשמר מיד ולא בהשהיה: בהקשר רקע אנדרואיד יכול לסגור את התהליך
+  // שנייה אחרי האירוע, וכתיבה מושהית לא הייתה מספיקה לקרות.
+  void setItem(StorageKeys.EVENT_LOG, entries);
+}
+
+let loaded = false;
+
+/**
+ * טוען את היומן ששמור מהפעלות קודמות ומאחד אותו עם מה שכבר נרשם עכשיו.
+ * נקרא פעם אחת בעליית האפליקציה ובתחילת כל משימת רקע.
+ */
+export async function loadPersistedEvents(): Promise<void> {
+  if (loaded) return;
+  loaded = true;
+  const stored = await getItem<LoggedEvent[]>(StorageKeys.EVENT_LOG);
+  if (!Array.isArray(stored) || stored.length === 0) return;
+  const seen = new Set(entries.map((e) => e.at + e.name));
+  const merged = [...entries, ...stored.filter((e) => !seen.has(e.at + e.name))]
+    .sort((a, b) => b.at - a.at)
+    .slice(0, config.EVENT_LOG_MAX_ENTRIES);
+  entries = merged;
+  listeners.forEach((listener) => listener(entries));
 }
 
 export function getEvents(): LoggedEvent[] {
@@ -62,6 +93,7 @@ export function getEvents(): LoggedEvent[] {
 export function clearEvents(): void {
   entries = [];
   listeners.forEach((listener) => listener(entries));
+  void removeItem(StorageKeys.EVENT_LOG);
 }
 
 export function subscribe(listener: Listener): () => void {

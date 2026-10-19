@@ -10,6 +10,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.android.gms.location.ActivityTransition
@@ -45,6 +46,10 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
     for (event in result.transitionEvents) {
       if (event.activityType != DetectedActivity.IN_VEHICLE) continue
 
+      // כמה שניות עברו מהרגע שהמעבר קרה בפועל ועד שגוגל מסרה אותו לנו.
+      // זה המספר שמבדיל בין "גוגל לא זיהתה" לבין "גוגל זיהתה באיחור".
+      val delaySec = (SystemClock.elapsedRealtimeNanos() - event.elapsedRealTimeNanos) / 1_000_000_000L
+
       when (event.transitionType) {
         ActivityTransition.ACTIVITY_TRANSITION_ENTER -> {
           // נכנס לרכב: רק רושמים. אין טעם להפריע להורה בהתראה עכשיו -
@@ -52,6 +57,7 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           VehicleDetectionStore.recordEvent(
             context, VehicleDetectionStore.EVENT_ENTER, System.currentTimeMillis()
           )
+          VehicleDetectionStore.appendHistory(context, "ENTER", "delay=${delaySec}s")
         }
 
         ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
@@ -59,6 +65,7 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           VehicleDetectionStore.recordEvent(
             context, VehicleDetectionStore.EVENT_EXIT, System.currentTimeMillis()
           )
+          VehicleDetectionStore.appendHistory(context, "EXIT", "delay=${delaySec}s")
           notifyExitedVehicle(context)
         }
       }
@@ -117,7 +124,9 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
      */
     try {
       NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build())
+      VehicleDetectionStore.appendHistory(context, "NOTIFY_OK")
     } catch (e: SecurityException) {
+      VehicleDetectionStore.appendHistory(context, "NOTIFY_BLOCKED", "no notification permission")
       // באנדרואיד 13 ומעלה ההורה יכול לסרב להרשאת התראות.
       // לא מקריסים - האירוע כבר נרשם, והאפליקציה תציג את הבדיקה בפתיחה הבאה.
     }

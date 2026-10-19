@@ -1,6 +1,8 @@
 package com.kidscarsafety.vehicledetection
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * אחסון קטן ומשותף בין המקלט (שרץ גם כשהאפליקציה סגורה) לבין שכבת ה-JavaScript.
@@ -30,6 +32,45 @@ object VehicleDetectionStore {
 
   const val EVENT_ENTER = "ENTER_VEHICLE"
   const val EVENT_EXIT = "EXIT_VEHICLE"
+
+  /**
+   * היסטוריה מתגלגלת של כל מה שקרה בצד הנייטיב.
+   *
+   * למה זה קיים: בבדיקות שטח הזיהוי עבד "לפעמים". בלי היסטוריה אין שום
+   * דרך לדעת למה - האם גוגל בכלל זיהתה יציאה מרכב, כמה זמן אחרי שזה
+   * קרה היא שלחה את זה, ואם הרישום נפל. המשבצת הבודדת של "האירוע
+   * האחרון" נדרסת בכל אירוע ולכן לא עוזרת לאבחון.
+   *
+   * נשמרים רק סוג האירוע, שעה ועיכוב. **שום מיקום.** זה עומד בכלל
+   * הפרטיות של הפרויקט: לא כותבים לדיסק יומן מיקומים.
+   */
+  private const val KEY_HISTORY = "history"
+  private const val HISTORY_MAX = 80
+
+  fun appendHistory(context: Context, type: String, detail: String = "") {
+    try {
+      val arr = JSONArray(prefs(context).getString(KEY_HISTORY, "[]"))
+      val entry = JSONObject()
+        .put("type", type)
+        .put("at", System.currentTimeMillis())
+        .put("detail", detail)
+      arr.put(entry)
+      // שומרים רק את האחרונים, כדי שהקובץ לא יגדל בלי סוף.
+      val trimmed = JSONArray()
+      val from = maxOf(0, arr.length() - HISTORY_MAX)
+      for (i in from until arr.length()) trimmed.put(arr.get(i))
+      prefs(context).edit().putString(KEY_HISTORY, trimmed.toString()).apply()
+    } catch (e: Exception) {
+      // יומן אבחון בלבד - אסור שכישלון בו ישבור את הזיהוי עצמו.
+    }
+  }
+
+  /** מוחזר כמחרוזת JSON ולא כאובייקט, כדי לחסוך המרות טיפוסים מול ה-JavaScript. */
+  fun getHistory(context: Context): String = prefs(context).getString(KEY_HISTORY, "[]") ?: "[]"
+
+  fun clearHistory(context: Context) {
+    prefs(context).edit().remove(KEY_HISTORY).apply()
+  }
 
   private fun prefs(context: Context) =
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

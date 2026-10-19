@@ -9,7 +9,7 @@ import {
   scheduleWarningLadder,
   cancelWarningLadder,
 } from '../notifications/notificationService';
-import { logEvent, TripEventName } from './eventLog';
+import { logEvent, TripEventName, loadPersistedEvents } from './eventLog';
 
 /**
  * מדליק ומכבה את ההגנה האוטומטית, ומחבר את מכונת המצבים לעולם האמיתי:
@@ -195,6 +195,7 @@ let engineReady: Promise<void> | null = null;
 export function ensureEngineReady(): Promise<void> {
   if (!engineReady) {
     engineReady = (async () => {
+      await loadPersistedEvents();
       tripStateService.setHandlers(handlers);
       await tripStateService.hydrate();
     })();
@@ -203,6 +204,7 @@ export function ensureEngineReady(): Promise<void> {
 }
 
 export async function restoreAfterRestart(): Promise<void> {
+  await loadPersistedEvents();
   tripStateService.setHandlers(handlers);
 
   /**
