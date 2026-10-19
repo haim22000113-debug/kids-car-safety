@@ -1,55 +1,40 @@
 import { config } from '../src/config';
 
 /**
- * ציר הזמן של שרשרת ההסלמה.
+ * ציר הזמן של ההסלמה.
  *
- * המספרים האלה נקבעו על ידי הבעלים אחרי בדיקת שטח, והם החלטה מוצרית ולא
- * פרט טכני. השיקול: מצד אחד הסלמה מהירה מדי מייצרת רעש על אירועים
- * שנגמרים בסדר, ומצד שני ילד שנשאר ברכב סגור בקיץ לא יכול לחכות.
- * הסיכון השני חמור יותר, ולכן הפער הראשון הוא ארבע דקות ולא שבע.
+ * המספרים האלה הם החלטה מוצרית של הבעלים ולא פרט טכני: אם ההורה לא
+ * אישר שראה את ההתראות תוך שתי דקות, מתקשרים לאיש הקשר.
  *
- * הבדיקה כאן לא בודקת קוד אלא **נועלת את ההחלטה**. אם מישהו ישנה את
- * הזמנים בטעות - למשל "לעגל את המספרים" - הבדיקה תיכשל ותכריח אותו
- * לשים לב שהוא משנה התנהגות בטיחות.
+ * הבדיקה לא בודקת קוד אלא **נועלת את ההחלטה**. מי שמשנה את הזמנים
+ * בטעות - למשל "לעגל" אותם - יראה אותה נכשלת ויבין שהוא משנה התנהגות
+ * בטיחות.
  */
 
-const minutes = (n: number) => n * 60;
+const callAt =
+  config.FIRST_WARNING_DELAY_SECONDS +
+  config.SECOND_WARNING_DELAY_SECONDS +
+  config.ESCALATION_DELAY_SECONDS +
+  config.CALL_COUNTDOWN_SECONDS;
 
-describe('ציר הזמן של שרשרת ההסלמה', () => {
+describe('ציר הזמן של ההסלמה', () => {
   it('האזהרה הראשונה נשלחת מיד', () => {
     expect(config.FIRST_WARNING_DELAY_SECONDS).toBe(0);
   });
 
-  it('השנייה ארבע דקות אחרי הראשונה', () => {
-    expect(config.SECOND_WARNING_DELAY_SECONDS).toBe(minutes(4));
+  it('האזעקה מגיעה דקה אחרי הראשונה', () => {
+    expect(config.SECOND_WARNING_DELAY_SECONDS).toBe(60);
   });
 
-  it('השלישית שלוש דקות אחרי השנייה', () => {
-    expect(config.ESCALATION_DELAY_SECONDS).toBe(minutes(3));
+  it('השיחה לאיש הקשר יוצאת בדיוק שתי דקות אחרי הזיהוי', () => {
+    expect(callAt).toBe(120);
   });
 
-  it('הרביעית חמש דקות אחרי השלישית', () => {
-    expect(config.FOURTH_WARNING_DELAY_SECONDS).toBe(minutes(5));
+  it('יש ספירה לאחור לפני השיחה, כדי שאפשר יהיה לבטל', () => {
+    expect(config.CALL_COUNTDOWN_SECONDS).toBeGreaterThanOrEqual(5);
   });
 
-  it('ציר הזמן המצטבר הוא 0, 4, 7, 12 דקות', () => {
-    const first = config.FIRST_WARNING_DELAY_SECONDS;
-    const second = first + config.SECOND_WARNING_DELAY_SECONDS;
-    const third = second + config.ESCALATION_DELAY_SECONDS;
-    const fourth = third + config.FOURTH_WARNING_DELAY_SECONDS;
-
-    expect([first, second, third, fourth]).toEqual([
-      minutes(0),
-      minutes(4),
-      minutes(7),
-      minutes(12),
-    ]);
-  });
-
-  it('כל אזהרה מאוחרת מקודמתה', () => {
-    // מגן מפני ערך שלילי או אפס שהיה גורם לשתי אזהרות להישלח יחד.
-    expect(config.SECOND_WARNING_DELAY_SECONDS).toBeGreaterThan(0);
+  it('האזעקה מגיעה לפני הספירה לאחור', () => {
     expect(config.ESCALATION_DELAY_SECONDS).toBeGreaterThan(0);
-    expect(config.FOURTH_WARNING_DELAY_SECONDS).toBeGreaterThan(0);
   });
 });

@@ -133,6 +133,7 @@ export default function Home() {
     });
     if (updated) setUser(updated);
     trackEvent(AnalyticsEvent.CHILDREN_NOT_WITH_ME_ENABLED, { scope });
+    await protectionService.syncNativeConfig();
   };
 
   const cancelNotWithMe = async () => {
@@ -141,6 +142,7 @@ export default function Home() {
       settings: { ...user.settings, childrenNotWithMe: { active: false, scope: null } },
     });
     if (updated) setUser(updated);
+    await protectionService.syncNativeConfig();
   };
 
   if (loading || error || !user) {

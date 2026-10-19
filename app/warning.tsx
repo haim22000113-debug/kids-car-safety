@@ -83,9 +83,14 @@ export default function Warning() {
         <Text style={styles.title}>רגע לפני שאתה ממשיך</Text>
         <Text style={styles.body}>הנסיעה עדיין פתוחה ואתה מתרחק מאזור העצירה.</Text>
         <Text style={styles.question}>בדקת שכל הילדים יצאו מהרכב?</Text>
+        {contact ? (
+          <Text style={styles.callNote}>
+            אם לא תאשר תוך שתי דקות מהזיהוי, נתקשר ל{contact.name}.
+          </Text>
+        ) : null}
       </View>
       <View style={styles.footer}>
-        <Button title="כולם איתי" onPress={onConfirm} loading={busy} style={styles.gap} />
+        <Button title="ראיתי, אני מטפל" onPress={onConfirm} loading={busy} style={styles.gap} />
         <Button title="אני צריך עזרה" variant="ghost" onPress={onNeedHelp} />
       </View>
     </SafeAreaView>
@@ -118,6 +123,12 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   footer: { padding: theme.spacing.lg },
+  callNote: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.md,
+  },
   gap: { marginBottom: theme.spacing.sm },
   noContact: {
     fontSize: theme.typography.body,

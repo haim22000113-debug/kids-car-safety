@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { AutoTripSnapshot, TripState } from '../models/TripState';
 import { Trip } from '../models';
-import { TripStorage, TripStateStorage } from '../storage';
+import { TripStorage, TripStateStorage, UserStorage } from '../storage';
+import { config } from '../config';
 import * as tripStateService from './tripStateService';
 import * as locationService from './locationService';
 import * as vehicleDetection from '../../modules/vehicle-detection';
@@ -21,6 +22,61 @@ import { logEvent, TripEventName, loadPersistedEvents } from './eventLog';
  */
 
 let started = false;
+
+/** כמה זמן מהזיהוי ועד השיחה לאיש הקשר. */
+const CALL_DEADLINE_MS =
+  (config.FIRST_WARNING_DELAY_SECONDS +
+    config.SECOND_WARNING_DELAY_SECONDS +
+    config.ESCALATION_DELAY_SECONDS +
+    config.CALL_COUNTDOWN_SECONDS) *
+  1000;
+
+function endOfToday(): number {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
+}
+
+/**
+ * מסנכרן לצד הנייטיב את מה שהוא צריך כדי לפעול לבד: איש הקשר, הזמנים,
+ * ומצב "הילדים לא איתי".
+ *
+ * הצד הנייטיב לא יכול לקרוא את הנתונים של ה-JavaScript (הם ב-AsyncStorage),
+ * ולכן כל שינוי רלוונטי צריך לעבור לשם במפורש. נקרא בעליית האפליקציה,
+ * בהדלקת ההגנה, בשמירת איש קשר ובשינוי "הילדים לא איתי".
+ */
+export async function syncNativeConfig(): Promise<void> {
+  const user = await UserStorage.getUser();
+  if (!user) return;
+
+  vehicleDetection.configureEscalation(
+    user.emergencyContact?.name ?? '',
+    user.emergencyContact?.phone ?? '',
+    CALL_DEADLINE_MS,
+    config.CALL_COUNTDOWN_SECONDS * 1000
+  );
+
+  // אם הצד הנייטיב כבר ניצל את הדילוג החד-פעמי ("רק לנסיעה הזו"),
+  // מכבים את ההגדרה גם אצל ההורה - אחרת היא הייתה נשארת דלוקה לנצח.
+  let notWithMe = user.settings.childrenNotWithMe;
+  if (vehicleDetection.consumeSuppressionUsed() && notWithMe.active && notWithMe.scope === 'trip') {
+    const updated = await UserStorage.updateUser({
+      settings: { ...user.settings, childrenNotWithMe: { active: false, scope: null } },
+    });
+    notWithMe = updated?.settings.childrenNotWithMe ?? notWithMe;
+  }
+
+  vehicleDetection.setSuppression(
+    notWithMe.active && notWithMe.scope === 'day' ? endOfToday() : 0,
+    notWithMe.active && notWithMe.scope === 'trip'
+  );
+}
+
+/** האם ההורה הגדיר עכשיו "הילדים לא איתי". */
+async function isSuppressed(): Promise<boolean> {
+  const user = await UserStorage.getUser();
+  return !!user?.settings.childrenNotWithMe.active;
+}
 
 function toTrip(snapshot: AutoTripSnapshot): Trip {
   const startedAt = snapshot.tripStartedAt ?? snapshot.stateSince;
@@ -43,11 +99,25 @@ function toTrip(snapshot: AutoTripSnapshot): Trip {
 
 const handlers: tripStateService.Handlers = {
   onFirstWarning: async () => {
-    // מתזמנים את כל שרשרת ההסלמה עכשיו, לא שלב-שלב. ראה את ההסבר הארוך
-    // ב-scheduleWarningLadder: זו הדרך היחידה שבה האזהרה השנייה תגיע גם
-    // אם האפליקציה כבר לא רצה.
-    const ids = await scheduleWarningLadder();
+    // ההורה אמר שהילדים לא איתו - אין על מה להתריע ובטח שלא להתקשר.
+    if (await isSuppressed()) {
+      logEvent(TripEventName.WARNING_SENT, 'דולג: הילדים לא איתי');
+      return;
+    }
+
+    // הזמן האמיתי שבו האירוע התחיל, ולא עכשיו: כשהזיהוי הגיע מהצד
+    // הנייטיב, ה-JavaScript מגיע אליו לפעמים באיחור.
+    const startedAt = tripStateService.getSnapshot().firstWarningAt ?? Date.now();
+
+    // מתזמנים את כל שרשרת ההתראות עכשיו, לא שלב-שלב: זו הדרך היחידה
+    // שבה האזעקה תגיע גם אם האפליקציה כבר לא רצה.
+    const ids = await scheduleWarningLadder(startedAt);
     await TripStateStorage.saveWarningIds(ids);
+
+    // השיחה לאיש הקשר מתוזמנת בצד הנייטיב. אם המקלט הנייטיב כבר תזמן
+    // אותה לאותו אירוע - זה לא מאפס אותה.
+    await syncNativeConfig();
+    vehicleDetection.scheduleEscalation(startedAt + CALL_DEADLINE_MS);
 
     // אם האפליקציה פתוחה - מקפיצים את ההורה ישר למסך האזהרה.
     try {
@@ -59,7 +129,7 @@ const handlers: tripStateService.Handlers = {
   onSecondWarning: async () => {
     // ההתראה עצמה כבר מתוזמנת במערכת ההפעלה מאז האזהרה הראשונה.
     // כאן רק מתעדים שהזמן עבר בלי תגובה, כדי שזה יופיע ביומן ובמסך הבדיקה.
-    logEvent(TripEventName.NO_RESPONSE, 'עברו שתי דקות בלי אישור');
+    logEvent(TripEventName.NO_RESPONSE, 'עברה דקה בלי אישור');
   },
   onEscalation: async () => {
     logEvent(TripEventName.ESCALATION_STARTED);
@@ -73,6 +143,8 @@ const handlers: tripStateService.Handlers = {
     const ids = await TripStateStorage.loadWarningIds();
     await cancelWarningLadder(ids);
     await TripStateStorage.clearWarningIds();
+    // ובעיקר: מבטלים את השיחה לאיש הקשר.
+    vehicleDetection.cancelEscalation();
   },
   onPersistTrip: async (snapshot) => {
     await TripStorage.saveTrip(toTrip(snapshot));
@@ -93,6 +165,7 @@ export async function startProtection(): Promise<{
 
   const location = await locationService.startTracking();
   const motion = await vehicleDetection.startTracking();
+  await syncNativeConfig();
 
   logEvent(TripEventName.PERMISSION_CHANGED, `הגנה: מיקום=${location}, תנועה=${motion}`);
   return { location, motion };
@@ -134,6 +207,30 @@ export function isStarted(): boolean {
  * מה שקרה בזמן שלא היינו ומגיבים אליו.
  */
 export async function consumePendingVehicleEvent(): Promise<void> {
+  await handlePendingVehicleEvent();
+  await consumeNativeConfirmation();
+}
+
+/**
+ * ההורה לחץ "ראיתי, אני מטפל" על התראה שהצד הנייטיב הציג - כשה-JavaScript
+ * לא רץ. הצד הנייטיב כבר ביטל את השיחה לאיש הקשר; כאן מסיימים את
+ * האירוע גם במכונת המצבים, ומבטלים את האזעקה שה-JavaScript תזמן.
+ *
+ * רץ אחרי טיפול באירוע היציאה, בכוונה: אם שניהם קרו בזמן שהאפליקציה
+ * הייתה סגורה, היציאה פותחת את האירוע והאישור סוגר אותו - באותה ריצה.
+ */
+async function consumeNativeConfirmation(): Promise<void> {
+  const confirmedAt = vehicleDetection.consumeConfirmation();
+  if (!confirmedAt) return;
+
+  const snapshot = tripStateService.getSnapshot();
+  if (!tripStateService.needsAttention(snapshot.state)) return;
+
+  logEvent(TripEventName.USER_CONFIRMED_SAFE, 'אושר מהתראה נייטיב');
+  await tripStateService.confirmSafe();
+}
+
+async function handlePendingVehicleEvent(): Promise<void> {
   const pending = vehicleDetection.getPendingEvent();
   if (!pending) return;
 
@@ -206,6 +303,7 @@ export function ensureEngineReady(): Promise<void> {
 export async function restoreAfterRestart(): Promise<void> {
   await loadPersistedEvents();
   tripStateService.setHandlers(handlers);
+  await syncNativeConfig();
 
   /**
    * מפעילים את מנוע הזמן כבר כאן ולא רק במסך הבית.

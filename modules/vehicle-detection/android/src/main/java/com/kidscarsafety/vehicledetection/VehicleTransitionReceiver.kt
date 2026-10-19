@@ -61,12 +61,23 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
         }
 
         ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
-          // יצא מהרכב: זה הרגע שכל המוצר קיים בשבילו.
-          VehicleDetectionStore.recordEvent(
-            context, VehicleDetectionStore.EVENT_EXIT, System.currentTimeMillis()
-          )
           VehicleDetectionStore.appendHistory(context, "EXIT", "delay=${delaySec}s")
+
+          // ההורה הגדיר "הילדים לא איתי". בלי הבדיקה הזו, ההסלמה הייתה
+          // מתקשרת לאיש הקשר בדיוק כשההורה אמר שאין סיבה.
+          if (VehicleDetectionStore.consumeSuppression(context)) {
+            VehicleDetectionStore.appendHistory(context, "SUPPRESSED", "children not with me")
+            continue
+          }
+
+          // יצא מהרכב: זה הרגע שכל המוצר קיים בשבילו.
+          val now = System.currentTimeMillis()
+          VehicleDetectionStore.recordEvent(context, VehicleDetectionStore.EVENT_EXIT, now)
           notifyExitedVehicle(context)
+
+          // ההסלמה מתוזמנת כאן ולא מה-JavaScript, כי ה-JavaScript לא רץ
+          // עכשיו. אם ההורה לא יאשר - השיחה תצא בזמן גם כשהאפליקציה מתה.
+          EscalationScheduler.schedule(context, now + VehicleDetectionStore.getCallDeadlineMs(context))
         }
       }
     }
@@ -110,6 +121,10 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
       .setAutoCancel(true)
 
     if (pendingIntent != null) builder.setContentIntent(pendingIntent)
+
+    // הכפתור שעוצר הכל, כולל השיחה לאיש הקשר. "ראיתי" ולא "כולם יצאו":
+    // ההורה רק צריך להגיד שהוא ראה ומטפל, לא להוכיח שהילדים כבר בחוץ.
+    builder.addAction(0, "ראיתי, אני מטפל", EscalationScheduler.acknowledgeIntent(context))
 
     /**
      * בלי FLAG_INSISTENT ובלי צליל אזעקה, בכוונה.

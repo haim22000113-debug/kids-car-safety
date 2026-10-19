@@ -2,7 +2,7 @@
   "expo": {
     "name": "כולם איתי",
     "slug": "hashiva-pkucha-ortal",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "hashivapkucha",
@@ -45,7 +45,7 @@
     },
     "android": {
       "package": "com.kidscarsafety.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.CALL_PHONE"

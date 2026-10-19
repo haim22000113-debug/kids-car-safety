@@ -155,6 +155,7 @@ export default function Settings() {
       settings: { ...user.settings, childrenNotWithMe: { active: false, scope: null } },
     });
     if (updated) setUser(updated);
+    await protectionService.syncNativeConfig();
   };
 
   const onResetData = () => {

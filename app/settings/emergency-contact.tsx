@@ -8,6 +8,7 @@ import { theme } from '../../src/theme';
 import { UserStorage } from '../../src/storage';
 import { trackEvent } from '../../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../../src/analytics/events';
+import { syncNativeConfig } from '../../src/services/protectionService';
 
 // Emergency Contact (סעיף 15) - נגיש גם מ-Onboarding וגם מ-Settings.
 export default function EmergencyContact() {
@@ -45,6 +46,8 @@ export default function EmergencyContact() {
     setSaving(true);
     await UserStorage.updateUser({ emergencyContact: { name: trimmedName, phone: trimmedPhone } });
     trackEvent(AnalyticsEvent.EMERGENCY_CONTACT_ADDED);
+    // בלי זה הצד הנייטיב היה מתקשר למספר הישן, או לאף אחד.
+    await syncNativeConfig();
 
     if (fromOnboarding) {
       router.replace('/home');
@@ -72,7 +75,7 @@ export default function EmergencyContact() {
     >
       <Text style={styles.title}>איש קשר לחירום</Text>
       <Text style={styles.subtitle}>
-        אם לא תגיב לתזכורות, נציע לך ליצור קשר עם האדם הזה.
+        אם לא תאשר שראית את ההתראות תוך שתי דקות, נתקשר לאדם הזה.
       </Text>
 
       <TextField

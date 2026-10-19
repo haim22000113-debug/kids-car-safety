@@ -72,6 +72,100 @@ object VehicleDetectionStore {
     prefs(context).edit().remove(KEY_HISTORY).apply()
   }
 
+  // ---------- הסלמה לאיש קשר ----------
+  //
+  // כל מה שהמקלט ומסך הספירה לאחור צריכים כדי לפעול בלי JavaScript:
+  // פרטי איש הקשר (ה-JS מסנכרן אותם לכאן), כמה זמן לחכות, ובאיזה שלב
+  // ההסלמה נמצאת. השלב נשמר כאן ולא בזיכרון, כי שלושה רכיבים שונים
+  // (מקלט ההתראה, מקלט ההסלמה ומסך הספירה) צריכים לראות אותו, לפעמים
+  // בתהליכים שונים.
+
+  private const val KEY_CONTACT_NAME = "contact_name"
+  private const val KEY_CONTACT_PHONE = "contact_phone"
+  private const val KEY_CALL_DEADLINE_MS = "call_deadline_ms"
+  private const val KEY_COUNTDOWN_MS = "countdown_ms"
+  private const val KEY_ESC_STATE = "escalation_state"
+  private const val KEY_ESC_FOR = "escalation_for"
+  private const val KEY_ESC_CALL_AT = "escalation_call_at"
+  private const val KEY_CONFIRMED_AT = "native_confirmed_at"
+  private const val KEY_SUPPRESS_UNTIL = "suppress_until"
+  private const val KEY_SUPPRESS_NEXT = "suppress_next"
+  private const val KEY_SUPPRESS_USED = "suppress_used"
+
+  const val ESC_IDLE = "IDLE"
+  const val ESC_SCHEDULED = "SCHEDULED"
+  const val ESC_COUNTDOWN = "COUNTDOWN"
+  const val ESC_CANCELLED = "CANCELLED"
+  const val ESC_CALLED = "CALLED"
+
+  fun setEscalationConfig(context: Context, name: String, phone: String, deadlineMs: Long, countdownMs: Long) {
+    prefs(context).edit()
+      .putString(KEY_CONTACT_NAME, name)
+      .putString(KEY_CONTACT_PHONE, phone)
+      .putLong(KEY_CALL_DEADLINE_MS, deadlineMs)
+      .putLong(KEY_COUNTDOWN_MS, countdownMs)
+      .apply()
+  }
+
+  fun getContactName(context: Context): String = prefs(context).getString(KEY_CONTACT_NAME, "") ?: ""
+  fun getContactPhone(context: Context): String = prefs(context).getString(KEY_CONTACT_PHONE, "") ?: ""
+  fun getCallDeadlineMs(context: Context): Long = prefs(context).getLong(KEY_CALL_DEADLINE_MS, 120_000L)
+  fun getCountdownMs(context: Context): Long = prefs(context).getLong(KEY_COUNTDOWN_MS, 10_000L)
+
+  // commit ולא apply: השלב נקרא מיד ברכיב אחר, ואסור שהכתיבה תהיה עדיין בדרך.
+  fun setEscalationState(context: Context, state: String) {
+    prefs(context).edit().putString(KEY_ESC_STATE, state).commit()
+  }
+  fun getEscalationState(context: Context): String = prefs(context).getString(KEY_ESC_STATE, ESC_IDLE) ?: ESC_IDLE
+
+  /** מזהה את האירוע שההסלמה שייכת לו - הזמן שבו השיחה אמורה לצאת. */
+  fun setEscalationFor(context: Context, callAt: Long) {
+    prefs(context).edit().putLong(KEY_ESC_FOR, callAt).commit()
+  }
+  fun getEscalationFor(context: Context): Long = prefs(context).getLong(KEY_ESC_FOR, 0L)
+
+  /** מתי בדיוק השיחה יוצאת, כדי שמסך הספירה יראה את אותו שעון כמו ההתראה. */
+  fun setCallAt(context: Context, at: Long) {
+    prefs(context).edit().putLong(KEY_ESC_CALL_AT, at).commit()
+  }
+  fun getCallAt(context: Context): Long = prefs(context).getLong(KEY_ESC_CALL_AT, 0L)
+
+  /** ההורה לחץ "ראיתי" בצד הנייטיב. ה-JS קורא את זה ומסיים את האירוע. */
+  fun markConfirmed(context: Context) {
+    prefs(context).edit().putLong(KEY_CONFIRMED_AT, System.currentTimeMillis()).commit()
+  }
+  fun consumeConfirmed(context: Context): Long {
+    val at = prefs(context).getLong(KEY_CONFIRMED_AT, 0L)
+    if (at > 0L) prefs(context).edit().remove(KEY_CONFIRMED_AT).commit()
+    return at
+  }
+
+  /**
+   * מצב "הילדים לא איתי". מסונכרן מה-JS.
+   * until - עד מתי (למשל סוף היום); next - דילוג חד-פעמי על היציאה הבאה.
+   */
+  fun setSuppression(context: Context, untilMs: Long, nextOnce: Boolean) {
+    prefs(context).edit().putLong(KEY_SUPPRESS_UNTIL, untilMs).putBoolean(KEY_SUPPRESS_NEXT, nextOnce).apply()
+  }
+
+  /** בודק אם להתעלם מהיציאה הזו, וצורך את הדילוג החד-פעמי אם יש. */
+  fun consumeSuppression(context: Context): Boolean {
+    val p = prefs(context)
+    if (p.getLong(KEY_SUPPRESS_UNTIL, 0L) > System.currentTimeMillis()) return true
+    if (p.getBoolean(KEY_SUPPRESS_NEXT, false)) {
+      p.edit().putBoolean(KEY_SUPPRESS_NEXT, false).putBoolean(KEY_SUPPRESS_USED, true).commit()
+      return true
+    }
+    return false
+  }
+
+  /** האם הדילוג החד-פעמי נוצל - כדי שה-JS ינקה את ההגדרה אצל ההורה. */
+  fun consumeSuppressionUsed(context: Context): Boolean {
+    val used = prefs(context).getBoolean(KEY_SUPPRESS_USED, false)
+    if (used) prefs(context).edit().putBoolean(KEY_SUPPRESS_USED, false).commit()
+    return used
+  }
+
   private fun prefs(context: Context) =
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 

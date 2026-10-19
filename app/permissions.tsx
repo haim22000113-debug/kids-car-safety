@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Linking, AppState } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking, AppState, PermissionsAndroid, Platform } from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher';
+import Constants from 'expo-constants';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
@@ -27,6 +29,8 @@ export default function Permissions() {
   const [needsSettings, setNeedsSettings] = useState(false);
   const [notifications, setNotifications] = useState(false);
   const [motion, setMotion] = useState(false);
+  const [call, setCall] = useState(false);
+  const [fullScreen, setFullScreen] = useState(true);
   /** איזו בקשה רצה כרגע, או null. לא בוליאני אחד משותף - ראה הערה למטה. */
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -40,6 +44,14 @@ export default function Permissions() {
     // המסך. התוצאה: הורה שכבר אישר התראות ראה לנצח "אפשר התראות" כאילו
     // לא אישר, והמסך שיקר לו לגבי מצב ההגנה שלו.
     setNotifications(await hasNotificationPermission());
+    if (Platform.OS === 'android') {
+      try {
+        setCall(await PermissionsAndroid.check('android.permission.CALL_PHONE' as never));
+      } catch {
+        setCall(false);
+      }
+      setFullScreen(vehicleDetection.canUseFullScreenIntent());
+    }
   }, []);
 
   useEffect(() => {
@@ -70,6 +82,23 @@ export default function Permissions() {
   const askBackground = () => run('background', locationService.requestBackgroundPermission);
   const askNotifications = () => run('notifications', requestNotificationPermission);
   const askMotion = () => run('motion', vehicleDetection.requestPermission);
+  const askCall = () =>
+    run('call', () => PermissionsAndroid.request('android.permission.CALL_PHONE' as never));
+
+  /**
+   * מאנדרואיד 14 אפליקציה צריכה אישור ידני כדי להציג מסך מלא מעל מסך
+   * הנעילה. אי אפשר לבקש את זה בדיאלוג - רק לשלוח להגדרות.
+   */
+  const openFullScreenSettings = async () => {
+    const pkg = Constants.expoConfig?.android?.package ?? 'com.kidscarsafety.app';
+    try {
+      await IntentLauncher.startActivityAsync('android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT', {
+        data: 'package:' + pkg,
+      });
+    } catch {
+      await Linking.openSettings();
+    }
+  };
 
   const done = () => router.replace(fromOnboarding ? '/home' : '/settings');
 
@@ -82,7 +111,8 @@ export default function Permissions() {
    * נכלל, כי באנדרואיד הוא הסיגנל הראשי.
    */
   const motionOk = !vehicleDetection.isSupported() || motion;
-  const allGood = foreground && background && notifications && motionOk;
+  const callOk = Platform.OS !== 'android' || call;
+  const allGood = foreground && background && notifications && motionOk && callOk && fullScreen;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -152,6 +182,31 @@ export default function Permissions() {
                 loading={busyAction === 'motion'}
               />
             }
+          />
+        ) : null}
+
+        {Platform.OS === 'android' ? (
+          <Item
+            title="חיוג לאיש קשר"
+            granted={call}
+            description="אם לא תאשר שראית את ההתראות תוך שתי דקות, האפליקציה תתקשר לאיש הקשר שלך. בלי ההרשאה היא תוכל רק לפתוח את מסך החיוג."
+            action={
+              <Button
+                title="אפשר חיוג"
+                variant="ghost"
+                onPress={askCall}
+                loading={busyAction === 'call'}
+              />
+            }
+          />
+        ) : null}
+
+        {!fullScreen ? (
+          <Item
+            title="מסך מלא מעל הנעילה"
+            granted={false}
+            description="מאפשר להציג את הספירה לאחור לפני השיחה גם כשהטלפון נעול, כמו שעון מעורר. צריך להפעיל ידנית בהגדרות."
+            action={<Button title="פתח הגדרות" variant="ghost" onPress={openFullScreenSettings} />}
           />
         ) : null}
 

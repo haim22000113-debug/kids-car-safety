@@ -18,6 +18,16 @@
   -->
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+  <!--
+    ההסלמה לאיש קשר: שיחה אם ההורה לא אישר שראה את ההתראות.
+    CALL_PHONE - השיחה עצמה. USE_FULL_SCREEN_INTENT - מסך הספירה מעל
+    מסך הנעילה. SCHEDULE_EXACT_ALARM - שהשיחה תצא בזמן ולא "בערך".
+  -->
+  <uses-permission android:name="android.permission.CALL_PHONE" />
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+
   <application>
     <!--
       המקלט שגוגל מעירה כשמתרחש מעבר בין מצבי תנועה.
@@ -56,6 +66,25 @@
         <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
       </intent-filter>
     </receiver>
+
+    <receiver
+      android:name="com.kidscarsafety.vehicledetection.EscalationReceiver"
+      android:exported="false" />
+
+    <!--
+      מסך הספירה לאחור. מוצג מעל מסך הנעילה (showWhenLocked) ומדליק את
+      המסך (turnScreenOn), כמו שעון מעורר. משימה נפרדת (taskAffinity ריק)
+      כדי שלא יתערבב עם האפליקציה הרגילה וישאיר אחריו מסך תקוע.
+    -->
+    <activity
+      android:name="com.kidscarsafety.vehicledetection.CountdownActivity"
+      android:exported="false"
+      android:showWhenLocked="true"
+      android:turnScreenOn="true"
+      android:excludeFromRecents="true"
+      android:launchMode="singleInstance"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
   </application>
 
 </manifest>

@@ -78,7 +78,10 @@ export const REMINDER_CHANNEL = 'safety-check-v2';
 export const STATUS_CHANNEL = 'trip-status-v2';
 
 /**
- * קטגוריית האזהרה, שמוסיפה כפתור "כולם איתי" על ההתראה עצמה.
+ * קטגוריית האזהרה, שמוסיפה כפתור "ראיתי, אני מטפל" על ההתראה עצמה.
+ *
+ * הכיתוב הוא "ראיתי" ולא "כולם יצאו", בכוונה: ההורה לא צריך להוכיח
+ * שהילדים כבר בחוץ, רק שהוא ראה ומטפל. מאותו רגע לא תצא שום שיחה.
  *
  * למה זה חשוב דווקא כאן: האזהרות הדחופות מנגנות צליל ארוך בעוצמת
  * אזעקה. ברגע שההורה כבר שם לב, הצליל הופך למטרד — והוא צריך דרך
@@ -97,7 +100,7 @@ if (Platform.OS === 'android') {
   Notifications.setNotificationCategoryAsync(WARNING_CATEGORY, [
     {
       identifier: ACTION_CONFIRM_SAFE,
-      buttonTitle: 'כולם איתי',
+      buttonTitle: 'ראיתי, אני מטפל',
       options: { opensAppToForeground: true },
     },
   ]).catch(() => {
@@ -337,59 +340,49 @@ export async function cancelReminders(ids: string[] | undefined): Promise<void> 
  * הניסוח בכל שלוש מכוון: אף פעם לא "שכחת ילד ברכב" - המערכת לא יודעת
  * את זה ואסור לה לטעון שהיא יודעת. רק שאלה שמחזירה את ההורה לבדוק.
  */
-export async function scheduleWarningLadder(): Promise<string[]> {
+export async function scheduleWarningLadder(startedAt: number = Date.now()): Promise<string[]> {
   const granted = await requestNotificationPermission();
   if (!granted) return [];
 
   /**
-   * ההשהיות ב-config הן "כמה אחרי הקודמת", ולכן נצברות כאן.
-   * ציר הזמן שיוצא: 0 → 4 → 7 → 12 דקות.
+   * שני שלבים בלבד: התראה עדינה ואזעקה. את השלב השלישי - הספירה לאחור
+   * והשיחה לאיש הקשר - מבצע הצד הנייטיב (EscalationScheduler), כי הוא
+   * חייב לעבוד גם כשהטלפון נעול והאפליקציה מתה.
    *
-   * רק הראשונה עדינה. מהשנייה ואילך הכל בעוצמת שעון מעורר, כי אם עברו
-   * ארבע דקות בלי שום תגובה אנחנו כבר לא מנומסים.
+   * הזמנים מחושבים מ-startedAt, הרגע שבו היציאה מהרכב זוהתה באמת, ולא
+   * מעכשיו. כשהזיהוי קורה בצד הנייטיב, ה-JavaScript מגיע אליו לפעמים
+   * עשרות שניות אחר כך; בלי העיגון הזה האזעקה הייתה זזה קדימה בזמן.
+   * שלב שזמנו כבר עבר - מדלגים עליו: את ההתראה הראשונה במקרה כזה הצד
+   * הנייטיב כבר הציג בעצמו.
    */
-  const first = config.FIRST_WARNING_DELAY_SECONDS;
-  const second = first + config.SECOND_WARNING_DELAY_SECONDS;
-  const third = second + config.ESCALATION_DELAY_SECONDS;
-  const fourth = third + config.FOURTH_WARNING_DELAY_SECONDS;
-
+  const now = Date.now();
   const steps = [
     {
-      delaySeconds: first,
+      at: startedAt + config.FIRST_WARNING_DELAY_SECONDS * 1000,
       channelId: WARNING_CHANNEL_GENTLE,
       title: 'רגע לפני שאתה ממשיך',
-      body: 'הנסיעה עדיין פתוחה. בדקת שכל הילדים יצאו מהרכב?',
+      body: 'בדקת שכל הילדים יצאו מהרכב?',
     },
     {
-      delaySeconds: second,
+      at: startedAt + (config.FIRST_WARNING_DELAY_SECONDS + config.SECOND_WARNING_DELAY_SECONDS) * 1000,
       channelId: WARNING_CHANNEL_URGENT,
       title: 'חשוב לבדוק את הרכב עכשיו',
-      body: 'לא התקבלה תגובה. בדקת שכל הילדים יצאו מהרכב?',
-    },
-    {
-      delaySeconds: third,
-      channelId: WARNING_CHANNEL_URGENT,
-      title: 'עדיין לא אישרת',
-      body: 'חזור לרכב ובדוק. אפשר גם להתקשר לאיש הקשר שהגדרת.',
-    },
-    {
-      delaySeconds: fourth,
-      channelId: WARNING_CHANNEL_URGENT,
-      title: 'בדוק את הרכב עכשיו',
-      body: 'עברו 12 דקות בלי אישור. ודא שכל הילדים יצאו מהרכב.',
+      body: 'לא התקבל אישור. אם לא תאשר, נתקשר לאיש הקשר שלך.',
     },
   ];
 
   const ids: string[] = [];
   for (const step of steps) {
+    const inMs = step.at - now;
+    // יותר מחמש שניות בעבר - כבר לא רלוונטי.
+    if (inMs < -5000) continue;
     try {
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: step.title,
           body: step.body,
           sound: true,
-          // מוסיף את כפתור "כולם איתי" על ההתראה, כדי שאפשר יהיה
-          // להשתיק את האזעקה בלחיצה אחת.
+          // כפתור "ראיתי, אני מטפל" על ההתראה עצמה.
           categoryIdentifier: WARNING_CATEGORY,
           // priority לבדו לא עושה כלום מאנדרואיד 8 ומעלה - הערוץ הוא
           // שקובע. הוא נשאר כאן בשביל מכשירים ישנים יותר.
@@ -397,8 +390,8 @@ export async function scheduleWarningLadder(): Promise<string[]> {
           data: { target: 'warning' },
         },
         trigger:
-          step.delaySeconds > 0
-            ? { ...secondsFromNow(step.delaySeconds), channelId: step.channelId }
+          inMs > 1000
+            ? { ...secondsFromNow(inMs / 1000), channelId: step.channelId }
             : { channelId: step.channelId },
       });
       ids.push(id);

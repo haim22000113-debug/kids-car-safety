@@ -22,6 +22,13 @@ interface VehicleDetectionNativeModule extends NativeModule {
   clearPendingEvent(): void;
   getHistory(): string;
   clearHistory(): void;
+  configureEscalation(name: string, phone: string, deadlineMs: number, countdownMs: number): void;
+  scheduleEscalation(callAtMs: number): void;
+  cancelEscalation(): void;
+  consumeConfirmation(): number;
+  setSuppression(untilMs: number, nextOnce: boolean): void;
+  consumeSuppressionUsed(): boolean;
+  canUseFullScreenIntent(): boolean;
 }
 
 /** רשומה ביומן האבחון הנייטיב. אין בה מיקום - רק סוג, שעה ופרטים טכניים. */
@@ -149,4 +156,52 @@ export function clearPendingEvent(): void {
   } catch {
     // לא קריטי.
   }
+}
+
+// ---------- הסלמה לאיש קשר ----------
+//
+// כל הפונקציות כאן שקטות כשהמודול לא קיים (אייפון, Expo Go): ההסלמה
+// היא שכבה נוספת, ואסור שהיעדרה יקריס את שאר האפליקציה.
+
+function safe<T>(fn: () => T, fallback: T): T {
+  if (!isSupported()) return fallback;
+  try {
+    return fn();
+  } catch {
+    return fallback;
+  }
+}
+
+/** מסנכרן לצד הנייטיב את איש הקשר והזמנים, כדי שיוכל לפעול בלי JavaScript. */
+export function configureEscalation(name: string, phone: string, deadlineMs: number, countdownMs: number): void {
+  safe(() => native!.configureEscalation(name, phone, deadlineMs, countdownMs), undefined);
+}
+
+/** מתזמן שיחה לאיש הקשר בזמן הנתון, אלא אם ההורה יאשר לפני. */
+export function scheduleEscalation(callAtMs: number): void {
+  safe(() => native!.scheduleEscalation(callAtMs), undefined);
+}
+
+/** ההורה אישר מתוך האפליקציה - מבטלים את הספירה והשיחה. */
+export function cancelEscalation(): void {
+  safe(() => native!.cancelEscalation(), undefined);
+}
+
+/** מתי ההורה לחץ "ראיתי" בהתראה נייטיב, או 0. נמחק אחרי הקריאה. */
+export function consumeConfirmation(): number {
+  return safe(() => native!.consumeConfirmation(), 0);
+}
+
+/** מצב "הילדים לא איתי": עד מתי, ו/או דילוג חד-פעמי על היציאה הבאה. */
+export function setSuppression(untilMs: number, nextOnce: boolean): void {
+  safe(() => native!.setSuppression(untilMs, nextOnce), undefined);
+}
+
+export function consumeSuppressionUsed(): boolean {
+  return safe(() => native!.consumeSuppressionUsed(), false);
+}
+
+/** מאנדרואיד 14, מסך מלא מעל מסך הנעילה דורש אישור ידני. */
+export function canUseFullScreenIntent(): boolean {
+  return safe(() => native!.canUseFullScreenIntent(), true);
 }

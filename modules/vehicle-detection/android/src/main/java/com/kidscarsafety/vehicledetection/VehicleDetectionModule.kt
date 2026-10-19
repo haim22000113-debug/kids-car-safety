@@ -1,6 +1,8 @@
 package com.kidscarsafety.vehicledetection
 
+import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -84,6 +86,45 @@ class VehicleDetectionModule : Module() {
 
     Function("clearHistory") {
       VehicleDetectionStore.clearHistory(context)
+    }
+
+    // ---------- הסלמה לאיש קשר ----------
+
+    /** ה-JS מסנכרן לכאן את איש הקשר והזמנים, כדי שהצד הנייטיב יפעל לבד. */
+    Function("configureEscalation") { name: String, phone: String, deadlineMs: Double, countdownMs: Double ->
+      VehicleDetectionStore.setEscalationConfig(context, name, phone, deadlineMs.toLong(), countdownMs.toLong())
+    }
+
+    Function("scheduleEscalation") { callAtMs: Double ->
+      EscalationScheduler.schedule(context, callAtMs.toLong())
+    }
+
+    /** נקרא כשההורה אישר מתוך האפליקציה עצמה. */
+    Function("cancelEscalation") {
+      EscalationScheduler.acknowledge(context, false)
+    }
+
+    /** מתי ההורה לחץ "ראיתי" בצד הנייטיב, או 0. נמחק אחרי הקריאה. */
+    Function("consumeConfirmation") {
+      VehicleDetectionStore.consumeConfirmed(context).toDouble()
+    }
+
+    Function("setSuppression") { untilMs: Double, nextOnce: Boolean ->
+      VehicleDetectionStore.setSuppression(context, untilMs.toLong(), nextOnce)
+    }
+
+    Function("consumeSuppressionUsed") {
+      VehicleDetectionStore.consumeSuppressionUsed(context)
+    }
+
+    /** מאנדרואיד 14 מסך מלא מעל הנעילה דורש אישור ידני של ההורה. */
+    Function("canUseFullScreenIntent") {
+      if (Build.VERSION.SDK_INT >= 34) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.canUseFullScreenIntent()
+      } else {
+        true
+      }
     }
   }
 }
