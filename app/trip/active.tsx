@@ -21,6 +21,7 @@ import * as protectionService from '../../src/services/protectionService';
 export default function ActiveTrip() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [childNames, setChildNames] = useState<string[]>([]);
   const [elapsed, setElapsed] = useState('00:00');
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,15 @@ export default function ActiveTrip() {
           return;
         }
         setTrip(t);
+        // השמות רק לאיחול. אם הטעינה נכשלת - איחול בלי שמות, לא שגיאה.
+        if (!t.skippedSafetyCheck) {
+          UserStorage.getUser()
+            .then((u) => {
+              if (!mounted || !u) return;
+              setChildNames(u.children.filter((c) => t.childrenIds.includes(c.id)).map((c) => c.name));
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {
         if (!mounted) return;
@@ -118,7 +128,7 @@ export default function ActiveTrip() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>נסיעה פעילה</Text>
-        <Text style={styles.wish}>{tripWish(new Date(trip.startTime))} 💙</Text>
+        <Text style={styles.wish}>{tripWish(new Date(trip.startTime), childNames)}</Text>
         <Text style={styles.timer}>{elapsed}</Text>
         <Text style={styles.hint}>אנחנו נזכיר לך לבדוק את הרכב בסיום הנסיעה.</Text>
       </View>

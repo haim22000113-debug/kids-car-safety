@@ -56,7 +56,7 @@ export function getTripStartNotificationDefs(
     {
       minutes: 0,
       title: 'נסיעה פעילה',
-      body: 'הנסיעה החלה, שתהיה לך נסיעה בטוחה! נזכיר לך לבדוק את הרכב בסיום.',
+      body: 'דרך צלחה! הנסיעה החלה, ובסיומה נזכיר לך לבדוק שכל הילדים יצאו מהרכב.',
       sticky: true,
       useSound: false,
     },

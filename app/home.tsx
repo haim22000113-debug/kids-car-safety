@@ -16,6 +16,12 @@ import { scheduleTripStartNotifications } from '../src/notifications/notificatio
 import * as protectionService from '../src/services/protectionService';
 import * as tripStateService from '../src/services/tripStateService';
 
+/** שמות הילדים שההורה בחר לנסיעה. ריק אם סימן "הילדים לא איתי". */
+function tripChildNames(trip: Trip, user: User): string[] {
+  if (trip.skippedSafetyCheck) return [];
+  return user.children.filter((c) => trip.childrenIds.includes(c.id)).map((c) => c.name);
+}
+
 // Home (סעיף 8).
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -262,7 +268,9 @@ export default function Home() {
         )}
 
         {activeTrip && !pendingTrip && !autoNeedsAttention ? (
-          <Text style={styles.statusWish}>{tripWish(new Date())} 💙</Text>
+          <Text style={styles.statusWish}>
+            {tripWish(new Date(activeTrip.startTime), tripChildNames(activeTrip, user))}
+          </Text>
         ) : null}
 
         {notWithMeActive ? (
