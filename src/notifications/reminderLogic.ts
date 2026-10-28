@@ -50,13 +50,14 @@ export function getTripActiveReminderMinutes(settings: ReminderSettings): number
  *    וזו בדיוק הפרצה שהמוצר נועד למנוע.
  */
 export function getTripStartNotificationDefs(
-  settings: ReminderSettings
+  settings: ReminderSettings,
+  wish?: string
 ): TripStartNotificationDef[] {
   return [
     {
       minutes: 0,
-      title: 'נסיעה פעילה',
-      body: 'דרך צלחה! הנסיעה החלה, ובסיומה נזכיר לך לבדוק שכל הילדים יצאו מהרכב.',
+      title: wish ?? 'נסיעה פעילה',
+      body: 'הנסיעה החלה. בסיומה נזכיר לך לבדוק שכל הילדים יצאו מהרכב.',
       sticky: true,
       useSound: false,
     },

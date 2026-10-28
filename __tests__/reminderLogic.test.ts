@@ -71,6 +71,8 @@ describe('getTripStartNotificationDefs', () => {
     expect(defs[0].sticky).toBe(true);
     expect(defs[0].useSound).toBe(false);
     expect(defs[0].body).toContain('הנסיעה החלה');
+    expect(defs[0].title).toBe('נסיעה פעילה');
+    expect(getTripStartNotificationDefs(DEFAULT_REMINDER_SETTINGS, 'דרך צלחה 🌤️')[0].title).toBe('דרך צלחה 🌤️');
 
     // התזכורת: אחרי 15 דקות כברירת מחדל, ומזכירה לבדוק את הרכב.
     expect(defs[1].minutes).toBe(15);

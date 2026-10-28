@@ -11,7 +11,14 @@ import { User, Trip, isAutoProtectionEnabled } from '../src/models';
 import { trackEvent } from '../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../src/analytics/events';
 import { formatTripSummary } from '../src/utils/format';
-import { personalGreeting, tripWish } from '../src/content/greetings';
+import {
+  GREETING_VARIANTS,
+  TRIP_WISHES,
+  personalGreeting,
+  pickDifferent,
+  tripWish,
+  wishIndexOf,
+} from '../src/content/greetings';
 import { scheduleTripStartNotifications } from '../src/notifications/notificationService';
 import * as protectionService from '../src/services/protectionService';
 import * as tripStateService from '../src/services/tripStateService';
@@ -36,6 +43,8 @@ export default function Home() {
    * נסיעות. ref מתעדכן מיד.
    */
   const startLock = useRef(false);
+  /** נוסח הברכה מתחלף בכל כניסה למסך, ואף פעם לא אותו נוסח פעמיים ברצף. */
+  const [greetingVariant, setGreetingVariant] = useState(0);
   const [recentTrips, setRecentTrips] = useState<Trip[]>([]);
   const [notWithMeVisible, setNotWithMeVisible] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -102,6 +111,7 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
+      setGreetingVariant((prev) => pickDifferent(GREETING_VARIANTS, prev, Math.random()));
       load();
     }, [load])
   );
@@ -130,6 +140,13 @@ export default function Home() {
     const now = new Date().toISOString();
     const notWithMe = user.settings.childrenNotWithMe;
     const skip = notWithMe.active;
+    // איחול אחר מהנסיעה הקודמת, כדי שלא יחזור על עצמו.
+    const [previous] = await TripStorage.getTripHistory();
+    const wishIndex = pickDifferent(
+      TRIP_WISHES.length,
+      previous ? wishIndexOf(previous) : undefined,
+      Math.random()
+    );
 
     const trip: Trip = {
       id: `trip_${Date.now()}`,
@@ -138,6 +155,7 @@ export default function Home() {
       childrenIds: user.children.map((c) => c.id),
       remindersSent: 0,
       skippedSafetyCheck: skip,
+      wishIndex,
     };
     await TripStorage.saveTrip(trip);
     trackEvent(AnalyticsEvent.TRIP_STARTED);
@@ -145,7 +163,11 @@ export default function Home() {
     // התראה שמופיעה בטלפון גם כשהמשתמש לא באפליקציה, יחד עם תזכורת למקרה
     // שישכח ללחוץ "סיים נסיעה". כשהילדים לא איתו אין בזה טעם - מדלגים.
     if (!skip) {
-      const startIds = await scheduleTripStartNotifications(trip, user.settings.reminders);
+      const startIds = await scheduleTripStartNotifications(
+        trip,
+        user.settings.reminders,
+        tripWish(wishIndex, tripChildNames(trip, user))
+      );
       if (startIds.length > 0) {
         await TripStorage.saveTrip({ ...trip, startNotificationIds: startIds });
       }
@@ -203,7 +225,7 @@ export default function Home() {
       </Pressable>
 
       <View style={styles.content}>
-        <Text style={styles.greeting}>{personalGreeting(user.name, new Date())}</Text>
+        <Text style={styles.greeting}>{personalGreeting(user.name, new Date(), greetingVariant)}</Text>
         <Text style={styles.subtext}>
           {user.children.length > 0
             ? `יש לך ${user.children.length} ${user.children.length === 1 ? 'ילד' : 'ילדים'} במעקב`
@@ -269,7 +291,7 @@ export default function Home() {
 
         {activeTrip && !pendingTrip && !autoNeedsAttention ? (
           <Text style={styles.statusWish}>
-            {tripWish(new Date(activeTrip.startTime), tripChildNames(activeTrip, user))}
+            {tripWish(wishIndexOf(activeTrip), tripChildNames(activeTrip, user))}
           </Text>
         ) : null}
 

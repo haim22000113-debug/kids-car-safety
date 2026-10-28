@@ -10,5 +10,7 @@ export interface Trip {
   remindersSent: number; // כמה תזכורות כבר נשלחו בנסיעה הזו
   skippedSafetyCheck: boolean; // true אם היה במצב "הילדים לא איתי" בזמן הנסיעה
   reminderNotificationIds?: string[]; // מזהי התזכורות שאחרי סיום הנסיעה - לביטול כשמאשרים
+  /** איזה איחול נסיעה מוצג (src/content/greetings). חסר בנסיעות ישנות. */
+  wishIndex?: number;
   startNotificationIds?: string[]; // ההתראה שנשלחת עם תחילת הנסיעה + תזכורת "שכחת לסיים"
 }

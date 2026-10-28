@@ -265,13 +265,14 @@ export async function scheduleSafetyCheckReminders(
  */
 export async function scheduleTripStartNotifications(
   trip: Trip,
-  settings: ReminderSettings
+  settings: ReminderSettings,
+  wish?: string
 ): Promise<string[]> {
   const granted = await requestNotificationPermission();
   if (!granted) return [];
 
   const ids: string[] = [];
-  for (const def of getTripStartNotificationDefs(settings)) {
+  for (const def of getTripStartNotificationDefs(settings, wish)) {
     try {
       const id = await Notifications.scheduleNotificationAsync({
         content: {

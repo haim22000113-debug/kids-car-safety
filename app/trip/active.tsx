@@ -10,7 +10,7 @@ import { Trip, DEFAULT_REMINDER_SETTINGS } from '../../src/models';
 import { trackEvent } from '../../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../../src/analytics/events';
 import { formatDuration } from '../../src/utils/format';
-import { tripWish } from '../../src/content/greetings';
+import { tripWish, wishIndexOf } from '../../src/content/greetings';
 import {
   scheduleSafetyCheckReminders,
   cancelReminders,
@@ -128,7 +128,7 @@ export default function ActiveTrip() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>נסיעה פעילה</Text>
-        <Text style={styles.wish}>{tripWish(new Date(trip.startTime), childNames)}</Text>
+        <Text style={styles.wish}>{tripWish(wishIndexOf(trip), childNames)}</Text>
         <Text style={styles.timer}>{elapsed}</Text>
         <Text style={styles.hint}>אנחנו נזכיר לך לבדוק את הרכב בסיום הנסיעה.</Text>
       </View>
