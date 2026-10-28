@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { theme } from '../src/theme';
+import { TEXT_RIGHT } from '../src/i18n/rtl';
 import * as locationService from '../src/services/locationService';
 import * as vehicleDetection from '../modules/vehicle-detection';
 import {
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
   intro: {
     fontSize: theme.typography.body,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 24,
     marginBottom: theme.spacing.lg,
   },
@@ -279,12 +280,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.subtitle,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textPrimary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
   itemDescription: {
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.xs,
     marginBottom: theme.spacing.sm,
     lineHeight: 20,
@@ -292,13 +293,13 @@ const styles = StyleSheet.create({
   grantedText: {
     fontSize: theme.typography.caption,
     color: theme.colors.success,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     fontWeight: theme.fontWeight.medium,
   },
   hint: {
     fontSize: theme.typography.caption,
     color: theme.colors.warning,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.sm,
     lineHeight: 20,
   },
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   limitedText: {
     fontSize: theme.typography.caption,
     color: theme.colors.warning,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 20,
   },
   footer: { padding: theme.spacing.lg },

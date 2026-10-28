@@ -9,6 +9,7 @@ import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { theme } from '../../src/theme';
+import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { UserStorage, TripStorage } from '../../src/storage';
 import { User, isAutoProtectionEnabled } from '../../src/models';
 import { getTripActiveReminderMinutes } from '../../src/notifications/reminderLogic';
@@ -400,14 +401,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.subtitle,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textPrimary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.sm,
   },
   subTitle: {
     fontSize: theme.typography.body,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.xs,
   },
@@ -434,14 +435,14 @@ const styles = StyleSheet.create({
   },
   notWithMeText: {
     color: theme.colors.warning,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     fontSize: theme.typography.body,
   },
   sectionTitle: {
     fontSize: theme.typography.subtitle,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textPrimary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.xl,
     marginBottom: theme.spacing.sm,
   },
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: theme.typography.body,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.sm,
   },
   switchRow: {
@@ -484,7 +485,7 @@ const styles = StyleSheet.create({
   warningText: {
     fontSize: theme.typography.caption,
     color: theme.colors.warning,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
   error: {
@@ -510,14 +511,14 @@ const styles = StyleSheet.create({
   bullet: {
     fontSize: theme.typography.body,
     color: theme.colors.primary,
-    marginLeft: theme.spacing.sm,
+    marginEnd: theme.spacing.sm,
     lineHeight: 22,
   },
   pointText: {
     flex: 1,
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
   emergencyBox: {
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption,
     color: theme.colors.danger,
     fontWeight: theme.fontWeight.medium,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
   versionText: {

@@ -5,11 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
 import { LoadingScreen } from '../src/components/LoadingScreen';
 import { theme } from '../src/theme';
+import { TEXT_RIGHT } from '../src/i18n/rtl';
 import { UserStorage, TripStorage } from '../src/storage';
 import { User, Trip, isAutoProtectionEnabled } from '../src/models';
 import { trackEvent } from '../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../src/analytics/events';
 import { formatTripSummary } from '../src/utils/format';
+import { personalGreeting, tripWish } from '../src/content/greetings';
 import { scheduleTripStartNotifications } from '../src/notifications/notificationService';
 import * as protectionService from '../src/services/protectionService';
 import * as tripStateService from '../src/services/tripStateService';
@@ -195,7 +197,7 @@ export default function Home() {
       </Pressable>
 
       <View style={styles.content}>
-        <Text style={styles.greeting}>שלום, {user.name}</Text>
+        <Text style={styles.greeting}>{personalGreeting(user.name, new Date())}</Text>
         <Text style={styles.subtext}>
           {user.children.length > 0
             ? `יש לך ${user.children.length} ${user.children.length === 1 ? 'ילד' : 'ילדים'} במעקב`
@@ -258,6 +260,10 @@ export default function Home() {
             </Text>
           </View>
         )}
+
+        {activeTrip && !pendingTrip && !autoNeedsAttention ? (
+          <Text style={styles.statusWish}>{tripWish(new Date())} 💙</Text>
+        ) : null}
 
         {notWithMeActive ? (
           <Pressable
@@ -361,7 +367,7 @@ const styles = StyleSheet.create({
   historyLink: {
     fontSize: theme.typography.caption,
     color: theme.colors.primary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.xs,
   },
   greeting: {
@@ -434,6 +440,12 @@ const styles = StyleSheet.create({
   statusActiveText: {
     color: theme.colors.primary,
   },
+  statusWish: {
+    fontSize: theme.typography.body,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+  },
   pendingCard: {
     width: '100%',
     marginTop: theme.spacing.lg,
@@ -493,12 +505,12 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.sm,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
   historyRow: {
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.xs,
   },
   footer: {

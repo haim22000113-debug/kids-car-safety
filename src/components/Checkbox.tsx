@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, View, StyleSheet } from 'react-native';
 import { theme } from '../theme';
+import { TEXT_RIGHT } from '../i18n/rtl';
 
 interface Props {
   label: string;
@@ -61,6 +62,6 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.md,
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
 });

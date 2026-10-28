@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, KeyboardTypeOptions } from 'react-native';
 import { theme } from '../theme';
+import { INPUT_RIGHT, TEXT_RIGHT } from '../i18n/rtl';
 
 interface Props {
   label: string;
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
   input: {
     minHeight: theme.minTouchTarget,
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
     backgroundColor: theme.colors.surface,
-    textAlign: 'right',
+    textAlign: INPUT_RIGHT,
   },
   inputError: {
     borderColor: theme.colors.danger,
@@ -75,6 +76,6 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     fontSize: theme.typography.caption,
     marginTop: theme.spacing.xs,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
 });

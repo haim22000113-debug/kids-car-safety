@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
 import { Checkbox } from '../src/components/Checkbox';
 import { theme } from '../src/theme';
+import { TEXT_RIGHT } from '../src/i18n/rtl';
 import { DisclaimerStorage, UserStorage } from '../src/storage';
 import {
   DISCLAIMER_TITLE,
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
   intro: {
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 24,
     marginBottom: theme.spacing.lg,
   },
@@ -111,14 +112,14 @@ const styles = StyleSheet.create({
   bullet: {
     fontSize: theme.typography.body,
     color: theme.colors.primary,
-    marginLeft: theme.spacing.sm,
+    marginEnd: theme.spacing.sm,
     lineHeight: 22,
   },
   pointText: {
     flex: 1,
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
   emergencyBox: {
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body,
     color: theme.colors.danger,
     fontWeight: theme.fontWeight.medium,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     lineHeight: 24,
   },
   footer: {

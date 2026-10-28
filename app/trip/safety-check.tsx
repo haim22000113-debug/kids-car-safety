@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
 import { theme } from '../../src/theme';
+import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { TripStorage, UserStorage } from '../../src/storage';
 import { Trip, Child, EmergencyContact } from '../../src/models';
 import { trackEvent } from '../../src/analytics/analyticsService';
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.subtitle,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.sm,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     width: '100%',
   },
   question: {

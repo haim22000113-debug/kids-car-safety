@@ -5,6 +5,7 @@ import { FormScreen } from '../../src/components/FormScreen';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
+import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { UserStorage } from '../../src/storage';
 import { createDefaultUser, Child } from '../../src/models';
 import { trackEvent } from '../../src/analytics/analyticsService';
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
   formError: {
     color: theme.colors.danger,

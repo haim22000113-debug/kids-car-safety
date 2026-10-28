@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../src/theme';
+import { TEXT_RIGHT } from '../src/i18n/rtl';
 import { TripStorage } from '../src/storage';
 import { Trip } from '../src/models';
 import { formatDateTime, formatDuration } from '../src/utils/format';
@@ -150,6 +151,6 @@ const styles = StyleSheet.create({
   rowStatus: {
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
 });

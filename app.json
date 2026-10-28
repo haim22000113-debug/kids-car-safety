@@ -20,6 +20,7 @@
         }
       ],
       "expo-asset",
+      "expo-localization",
       [
         "expo-location",
         {
@@ -32,6 +33,8 @@
       ]
     ],
     "extra": {
+      "supportsRTL": true,
+      "forcesRTL": true,
       "router": {
         "origin": false
       },

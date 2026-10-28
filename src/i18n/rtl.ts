@@ -1,12 +1,11 @@
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 
 /**
  * האפליקציה מיועדת למשתמשים ישראלים - RTL ועברית הם ברירת המחדל (סעיף 22).
  *
- * הערה טכנית חשובה: React Native דורש טעינה מחדש (reload) של האפליקציה כדי ש-
- * forceRTL ייכנס לתוקף באופן מלא ב-native (iOS/Android). בפתיחה הראשונה של
- * האפליקציה נכוון את הדגל, ואם היה צריך לשנות אותו נבצע Reload אוטומטי כדי
- * שהמשתמש לא יצטרך לעשות כלום בעצמו.
+ * ה-RTL נדלק בצד הנייטיב, לפני שהאפליקציה עולה, דרך expo-localization
+ * (`forcesRTL` ב-app.json). כך הממשק מימין לשמאל כבר בפתיחה הראשונה.
+ * הקריאה כאן היא רק גיבוי: forceRTL מ-JavaScript נכנס לתוקף רק בפתיחה הבאה.
  */
 export function ensureRTL(): void {
   if (!I18nManager.isRTL || !I18nManager.allowRTL) {
@@ -15,7 +14,18 @@ export function ensureRTL(): void {
   }
 }
 
-/** true אם צריך Reload כדי שה-RTL ייכנס לתוקף (משמש ברכיב הבסיס של האפליקציה). */
-export function needsRTLReload(): boolean {
-  return !I18nManager.isRTL;
-}
+/**
+ * יישור טקסט לצד ימין של המסך.
+ *
+ * למה לא פשוט textAlign: 'right': כשהאפליקציה במצב RTL, React Native הופך
+ * את 'left' ו-'right' של רכיב Text (באנדרואיד ובאייפון), ו-'right' נוחת
+ * בצד **שמאל**. זה בדיוק הבאג שגרם לעברית להיראות "הפוכה". הקבוע הזה
+ * מיישר לימין בפועל, בין אם ה-RTL דלוק ובין אם לא.
+ */
+export const TEXT_RIGHT: 'left' | 'right' = I18nManager.isRTL ? 'left' : 'right';
+
+/**
+ * אותו דבר עבור שדה הקלדה (TextInput). באנדרואיד שדה הקלדה **לא** הופך
+ * את הכיוון, ולכן שם 'right' נשאר 'right'. באייפון הוא כן הופך.
+ */
+export const INPUT_RIGHT: 'left' | 'right' = Platform.OS === 'ios' ? TEXT_RIGHT : 'right';

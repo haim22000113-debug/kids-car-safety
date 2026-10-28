@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Button } from '../src/components/Button';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { theme } from '../src/theme';
+import { TEXT_RIGHT } from '../src/i18n/rtl';
 import { config, APP_ENV } from '../src/config';
 import { AutoTripSnapshot, TripState } from '../src/models/TripState';
 import * as tripStateService from '../src/services/tripStateService';
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.subtitle,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.primary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
   },
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
   event: {
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
     marginBottom: 2,
   },
   empty: { fontSize: theme.typography.caption, color: theme.colors.textSecondary, textAlign: 'center' },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { theme } from '../theme';
+import { TEXT_RIGHT } from '../i18n/rtl';
 
 interface Props {
   label: string;
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
-    textAlign: 'right',
+    textAlign: TEXT_RIGHT,
   },
   row: {
     flexDirection: 'row',
