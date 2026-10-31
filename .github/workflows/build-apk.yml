@@ -56,9 +56,11 @@ jobs:
         working-directory: android
         run: |
           sed -i '/^org.gradle.jvmargs=/d; /^kotlin.daemon.jvmargs=/d' gradle.properties
+          # לקובץ אין ירידת שורה בסוף - בלעדיה ההגדרה נדבקת לשורה האחרונה ושוברת אותה
+          echo >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
           echo 'kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
-          grep -E 'jvmargs' gradle.properties
+          tail -n 5 gradle.properties
 
       - name: Build release APK
         working-directory: android
