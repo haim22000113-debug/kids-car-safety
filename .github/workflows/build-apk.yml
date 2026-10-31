@@ -24,7 +24,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -49,9 +49,20 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
 
+      # בריצה הראשונה הבנייה נתקעה על OutOfMemoryError: Metaspace של
+      # תהליך הקומפילציה של Kotlin (ברירת המחדל של prebuild היא 512MB).
+      # לשרת של GitHub יש 16GB, אז מגדילים.
+      - name: Increase Gradle and Kotlin memory
+        working-directory: android
+        run: |
+          sed -i '/^org.gradle.jvmargs=/d; /^kotlin.daemon.jvmargs=/d' gradle.properties
+          echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
+          echo 'kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
+          grep -E 'jvmargs' gradle.properties
+
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Rename APK
         run: |
