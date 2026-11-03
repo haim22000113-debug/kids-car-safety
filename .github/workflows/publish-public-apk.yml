@@ -7,10 +7,12 @@
 
 name: Publish APK publicly
 
+# workflow_run ו-workflow_dispatch עובדים רק מהענף הראשי, אז הקובץ רץ
+# כשהוא עצמו משתנה בענף. אחרי כל בנייה חדשה, build-apk.yml מפרסם בעצמו.
 on:
-  workflow_run:
-    workflows: [Build APK]
-    types: [completed]
+  push:
+    branches: [claude/kids-car-safety-hpvwkp]
+    paths: [.github/workflows/publish-public-apk.yml]
   workflow_dispatch:
 
 permissions:
@@ -21,7 +23,6 @@ env:
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -37,8 +38,8 @@ jobs:
           GH_TOKEN: ${{ secrets.DOWNLOAD_REPO_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::error::חסר הסוד DOWNLOAD_REPO_TOKEN"
-            exit 1
+            echo "אין DOWNLOAD_REPO_TOKEN עדיין - מדלג"
+            exit 0
           fi
           TAG="apk-$(date -u +%Y%m%d-%H%M)"
           gh release create "$TAG" out/little-shield.apk \
@@ -49,3 +50,4 @@ jobs:
           # משאירים רק את 3 הגרסאות האחרונות
           gh release list --repo "$PUBLIC_REPO" --limit 100 --json tagName -q '.[3:][].tagName' |
             while read -r old; do gh release delete "$old" --repo "$PUBLIC_REPO" --yes --cleanup-tag; done
+# trigger: 1

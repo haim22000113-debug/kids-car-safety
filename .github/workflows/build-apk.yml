@@ -86,3 +86,17 @@ jobs:
             --title "Little Shield APK (${GITHUB_SHA::7})" \
             --notes "נבנה מהענף ${GITHUB_REF_NAME}, קומיט ${GITHUB_SHA::7}." \
             --prerelease --target "$GITHUB_SHA"
+
+      # עותק במאגר הציבורי little-shield-download, כדי שה-QR יעבוד בלי התחברות.
+      # מדלג בשקט אם עוד לא הוגדר הסוד.
+      - name: Publish to public download repo
+        env:
+          GH_TOKEN: ${{ secrets.DOWNLOAD_REPO_TOKEN }}
+          PUBLIC_REPO: ${{ github.repository_owner }}/little-shield-download
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "אין DOWNLOAD_REPO_TOKEN - מדלג"; exit 0; fi
+          TAG="apk-$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          gh release create "$TAG" out/little-shield.apk --repo "$PUBLIC_REPO" \
+            --title "Little Shield ($TAG)" --notes "קובץ התקנה לאנדרואיד." --latest
+          gh release list --repo "$PUBLIC_REPO" --limit 100 --json tagName -q '.[3:][].tagName' |
+            while read -r old; do gh release delete "$old" --repo "$PUBLIC_REPO" --yes --cleanup-tag; done
