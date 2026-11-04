@@ -82,13 +82,29 @@ jobs:
       - name: Publish as release
         env:
           GH_TOKEN: ${{ github.token }}
+        # לא מוחקים את הגרסה הקודמת לפני שהחדשה עלתה. קודם היה כאן delete ואז
+        # create, וכש-GitHub החזיר 502 באמצע (קרה פעמיים ברצף) הקישור וה-QR
+        # נשארו שבורים עד הבנייה הבאה. עכשיו: יוצרים רק אם אין, מחליפים את
+        # הקובץ במקום, ומנסים שוב כמה פעמים על תקלות שרת זמניות.
         run: |
           TAG=apk-latest
-          gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" out/little-shield.apk \
-            --title "Little Shield APK (${GITHUB_SHA::7})" \
-            --notes "נבנה מהענף ${GITHUB_REF_NAME}, קומיט ${GITHUB_SHA::7}." \
-            --prerelease --target "$GITHUB_SHA"
+          TITLE="Little Shield APK (${GITHUB_SHA::7})"
+          NOTES="נבנה מהענף ${GITHUB_REF_NAME}, קומיט ${GITHUB_SHA::7}."
+          retry() {
+            for i in 1 2 3 4 5; do
+              "$@" && return 0
+              echo "ניסיון $i נכשל, מנסה שוב"
+              sleep $((i * 15))
+            done
+            return 1
+          }
+          create_if_missing() {
+            gh release view "$TAG" >/dev/null 2>&1 ||
+              gh release create "$TAG" --title "$TITLE" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
+          }
+          retry create_if_missing
+          retry gh release upload "$TAG" out/little-shield.apk --clobber
+          retry gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true
 
       # עותק במאגר הציבורי little-shield-download, כדי שה-QR יעבוד בלי התחברות.
       # מדלג בשקט אם עוד לא הוגדר הסוד.
