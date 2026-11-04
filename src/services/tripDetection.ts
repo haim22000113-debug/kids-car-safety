@@ -194,6 +194,35 @@ export function assessTripStop(samples: GeoPoint[]): TripStopAssessment {
 }
 
 /**
+ * האם הנסיעה התחדשה אחרי עצירה.
+ *
+ * בודק **רק דגימות מרגע העצירה ואילך** (ועוד דגימה אחת לפניה, כנקודת
+ * ייחוס למהירות). באג שנמצא בבדיקת שטח: הבדיקה רצה על כל מאגר הדגימות,
+ * שעדיין הכיל את הנסיעה שלפני העצירה - ולכן כל דגימה של רכב חונה
+ * נראתה כמו "הנסיעה התחדשה". המכונה קפצה בין עצירה לנסיעה כל 45 שניות,
+ * תקופת החסד התאפסה כל פעם, ויציאה מהרכב לפי מיקום לא זוהתה אף פעם.
+ */
+export function assessTripResume(samples: GeoPoint[], stoppedAt: number): { resumed: boolean; samplesAboveSpeed: number } {
+  const usable = samples.filter(isReliable);
+
+  let anchor = 0;
+  for (let i = 0; i < usable.length; i++) {
+    if (usable[i].timestamp <= stoppedAt) anchor = i;
+  }
+  const window = usable.slice(anchor);
+
+  const samplesAboveSpeed = window.filter((p, i) => {
+    const speed = effectiveSpeed(window[i - 1], p);
+    return speed !== null && speed >= config.TRIP_SPEED_THRESHOLD_MPS;
+  }).length;
+
+  return {
+    resumed: samplesAboveSpeed >= config.TRIP_RESUME_MIN_SAMPLES_ABOVE_SPEED,
+    samplesAboveSpeed,
+  };
+}
+
+/**
  * בוחר את הדגימה שתשמש כנקודת העצירה.
  * מעדיף את הדגימה המדויקת ביותר מבין האחרונות, לא בהכרח האחרונה -
  * כי דיוק גרוע בנקודת העצירה מזיז את כל ה-geofence.

@@ -7,7 +7,7 @@ import {
 } from '../models/TripState';
 import { config } from '../config';
 import { TripEventName, TripEventNameType } from './eventLog';
-import { assessTripStart, assessTripStop, pickStopPoint } from './tripDetection';
+import { assessTripStart, assessTripStop, assessTripResume, pickStopPoint } from './tripDetection';
 import { hasLeftVehicleArea } from './geoUtils';
 
 /**
@@ -244,9 +244,10 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
       case TripState.GRACE_PERIOD: {
         if (!snapshot.stopLocation) break;
 
-        // אם ההורה חזר לנסוע - הנסיעה ממשיכה ואין מה להתריע.
-        const startAgain = assessTripStart(input.samples);
-        if (startAgain.isTrip) {
+        // אם ההורה חזר לנסוע - הנסיעה ממשיכה ואין מה להתריע. רק לפי
+        // דגימות מאז העצירה - ראה assessTripResume.
+        const startAgain = assessTripResume(input.samples, snapshot.stopLocation.stoppedAt);
+        if (startAgain.resumed) {
           effects.push({ type: 'REMOVE_GEOFENCE' });
           events.push({ name: TripEventName.GEOFENCE_REMOVED, detail: 'הנסיעה התחדשה' });
           goTo(TripState.ACTIVE, { stopLocation: undefined });

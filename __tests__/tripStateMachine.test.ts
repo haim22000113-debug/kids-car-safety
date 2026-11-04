@@ -238,6 +238,54 @@ describe('מצב ידני ופעולות משתמש', () => {
   });
 });
 
+describe('בדיקת שטח: רכב חונה עם מאגר דגימות אמיתי', () => {
+  /**
+   * הבאג שהתגלה בשטח: באפליקציה האמיתית מאגר הדגימות מכיל גם את הנסיעה
+   * שלפני העצירה. הבדיקות הקודמות העבירו למכונה רק את דגימות החניה,
+   * ולכן לא ראו שכל דגימה של רכב עומד הוחזרה ל"נסיעה התחדשה".
+   */
+  function parkedWithRealBuffer() {
+    const { drive, parked, stopOrigin } = drivingThenStopped();
+    let buffer = [...drive];
+    let snapshot: AutoTripSnapshot = { ...INITIAL_SNAPSHOT, stateSince: T0 };
+    const feed = (point: (typeof drive)[number]) => {
+      buffer = [...buffer, point].slice(-config.LOCATION_BUFFER_SIZE);
+      const step = run([{ kind: 'LOCATION', point, samples: buffer, now: point.timestamp }], snapshot);
+      snapshot = step.snapshot;
+      return step;
+    };
+    snapshot = run([
+      { kind: 'LOCATION', point: drive[drive.length - 1], samples: drive, now: drive[drive.length - 1].timestamp },
+    ]).snapshot;
+    parked.forEach(feed);
+    return { feed, getSnapshot: () => snapshot, stopOrigin, lastParked: parked[parked.length - 1] };
+  }
+
+  it('רכב שעומד במקום נשאר בעצירה ולא "מתחדש" בכל דגימה', () => {
+    const { feed, getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
+    expect(getSnapshot().state).toBe(TripState.GRACE_PERIOD);
+
+    // עוד חמש דקות של עמידה במקום, דגימה כל 45 שניות - כמו בטלפון.
+    for (let i = 1; i <= 7; i++) {
+      const still = makeStationary({
+        startAt: lastParked.timestamp + seconds(45 * i),
+        count: 1,
+        origin: stopOrigin,
+      })[0];
+      const step = feed(still);
+      expect(step.effects).not.toContain('REMOVE_GEOFENCE');
+      expect(getSnapshot().state).toBe(TripState.GRACE_PERIOD);
+    }
+  });
+
+  it('אחרי עצירה אמיתית, התרחקות מהרכב מגיעה לאזהרה', () => {
+    const { feed, getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
+    const afterGrace = lastParked.timestamp + seconds(config.EXIT_GRACE_PERIOD_SECONDS + 240);
+    feed(makePointAtDistance(stopOrigin, 400, { timestamp: afterGrace }));
+    expect(getSnapshot().state).toBe(TripState.LEFT_VEHICLE_AREA);
+  });
+});
+
 describe('חידוש נסיעה', () => {
   it('אם ההורה חזר לנסוע בזמן החסד, הנסיעה ממשיכה ואין אזהרה', () => {
     const stopOrigin = ORIGIN;

@@ -37,6 +37,13 @@ export const config = {
   /** כמה זמן בלי תנועה משמעותית נחשב עצירה. */
   TRIP_STOP_DURATION_SECONDS: 120,
 
+  /**
+   * כמה דגימות במהירות נסיעה *אחרי העצירה* נדרשות כדי לקבוע שהנסיעה
+   * התחדשה. פחות מ-TRIP_START_MIN_SAMPLES_ABOVE_SPEED, כי כאן כבר ידוע
+   * שזו נסיעה. לא 1: חידוש שווא מבטל את האזהרה, וזו הטעות המסוכנת.
+   */
+  TRIP_RESUME_MIN_SAMPLES_ABOVE_SPEED: 2,
+
   /** תנועה מתחת לרדיוס הזה נחשבת "עומד במקום" (רעש GPS, רמזור). */
   TRIP_STOP_MAX_DRIFT_METERS: 30,
 
