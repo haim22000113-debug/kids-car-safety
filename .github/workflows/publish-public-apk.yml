@@ -1,0 +1,53 @@
+# מעתיק את ה-APK האחרון מהמאגר הפרטי למאגר ציבורי נפרד, כדי שקישור
+# ההורדה (וה-QR) יעבוד בלי להתחבר ל-GitHub.
+#
+# במאגר הציבורי יש רק קובץ ההתקנה, בלי קוד ובלי צילומי מסך.
+# דורש סוד DOWNLOAD_REPO_TOKEN: טוקן fine-grained עם הרשאת
+# Contents: Read and write על המאגר little-shield-download בלבד.
+
+name: Publish APK publicly
+
+# workflow_run ו-workflow_dispatch עובדים רק מהענף הראשי, אז הקובץ רץ
+# כשהוא עצמו משתנה בענף. אחרי כל בנייה חדשה, build-apk.yml מפרסם בעצמו.
+on:
+  push:
+    branches: [claude/kids-car-safety-hpvwkp]
+    paths: [.github/workflows/publish-public-apk.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PUBLIC_REPO: ${{ github.repository_owner }}/little-shield-download
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download APK from private release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download apk-latest --repo "$GITHUB_REPOSITORY" --pattern little-shield.apk --dir out
+          ls -la out
+
+      - name: Publish to public repo
+        env:
+          GH_TOKEN: ${{ secrets.DOWNLOAD_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "אין DOWNLOAD_REPO_TOKEN עדיין - מדלג"
+            exit 0
+          fi
+          TAG="apk-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$TAG" out/little-shield.apk \
+            --repo "$PUBLIC_REPO" \
+            --title "Little Shield ($TAG)" \
+            --notes "קובץ התקנה לאנדרואיד." \
+            --latest
+          # משאירים רק את 3 הגרסאות האחרונות
+          gh release list --repo "$PUBLIC_REPO" --limit 100 --json tagName -q '.[3:][].tagName' |
+            while read -r old; do gh release delete "$old" --repo "$PUBLIC_REPO" --yes --cleanup-tag; done
+# trigger: 1

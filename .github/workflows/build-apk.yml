@@ -1,0 +1,102 @@
+# בונה APK לאנדרואיד על שרתי GitHub ומפרסם אותו כ-Release להורדה.
+# רץ אוטומטית בכל דחיפה לענף, או ידנית מלשונית Actions.
+#
+# prebuild רץ כאן על שרת זמני של GitHub ונזרק בסוף - תיקיית android/
+# לא נכנסת למאגר, ובניית EAS הרגילה לא מושפעת.
+#
+# החתימה היא מפתח debug ולא המפתח של EAS. לכן אם במכשיר מותקנת גרסה
+# מ-EAS, צריך להסיר אותה לפני התקנת ה-APK הזה (ולהפך).
+
+name: Build APK
+
+on:
+  push:
+    branches: [claude/kids-car-safety-hpvwkp]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: npm test -- --ci
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install
+
+      # בריצה הראשונה הבנייה נתקעה על OutOfMemoryError: Metaspace של
+      # תהליך הקומפילציה של Kotlin (ברירת המחדל של prebuild היא 512MB).
+      # לשרת של GitHub יש 16GB, אז מגדילים.
+      - name: Increase Gradle and Kotlin memory
+        working-directory: android
+        run: |
+          sed -i '/^org.gradle.jvmargs=/d; /^kotlin.daemon.jvmargs=/d' gradle.properties
+          # לקובץ אין ירידת שורה בסוף - בלעדיה ההגדרה נדבקת לשורה האחרונה ושוברת אותה
+          echo >> gradle.properties
+          echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
+          echo 'kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
+          tail -n 5 gradle.properties
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: Rename APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk out/little-shield.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: little-shield-apk
+          path: out/little-shield.apk
+
+      - name: Publish as release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=apk-latest
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" out/little-shield.apk \
+            --title "Little Shield APK (${GITHUB_SHA::7})" \
+            --notes "נבנה מהענף ${GITHUB_REF_NAME}, קומיט ${GITHUB_SHA::7}." \
+            --prerelease --target "$GITHUB_SHA"
+
+      # עותק במאגר הציבורי little-shield-download, כדי שה-QR יעבוד בלי התחברות.
+      # מדלג בשקט אם עוד לא הוגדר הסוד.
+      - name: Publish to public download repo
+        env:
+          GH_TOKEN: ${{ secrets.DOWNLOAD_REPO_TOKEN }}
+          PUBLIC_REPO: ${{ github.repository_owner }}/little-shield-download
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "אין DOWNLOAD_REPO_TOKEN - מדלג"; exit 0; fi
+          TAG="apk-$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          gh release create "$TAG" out/little-shield.apk --repo "$PUBLIC_REPO" \
+            --title "Little Shield ($TAG)" --notes "קובץ התקנה לאנדרואיד." --latest
+          gh release list --repo "$PUBLIC_REPO" --limit 100 --json tagName -q '.[3:][].tagName' |
+            while read -r old; do gh release delete "$old" --repo "$PUBLIC_REPO" --yes --cleanup-tag; done
