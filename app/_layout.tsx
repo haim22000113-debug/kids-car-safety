@@ -13,7 +13,6 @@ import {
 // לאירוע רקע והמשימה לא רשומה - האירוע פשוט הולך לאיבוד.
 import '../src/services/backgroundTasks';
 import * as protectionService from '../src/services/protectionService';
-import * as tripStateService from '../src/services/tripStateService';
 
 /**
  * לחיצה על התראה מעבירה למסך הרלוונטי (סעיף 14). התראות של תחילת נסיעה
@@ -49,7 +48,7 @@ async function confirmFromNotification(data: Record<string, unknown> | undefined
     await protectionService.confirmManualTrip(tripId);
     return;
   }
-  await tripStateService.confirmSafe();
+  await protectionService.acknowledgeWarning();
 }
 
 export default function RootLayout() {

@@ -237,6 +237,8 @@ export async function confirmManualTrip(tripId: string): Promise<void> {
     await TripStorage.saveTrip({ ...trip, confirmedAt: new Date().toISOString(), status: 'CONFIRMED' });
   }
   logEvent(TripEventName.USER_CONFIRMED_SAFE, 'אושר מתזכורת של נסיעה ידנית');
+  // אותו מרוץ כמו ב-acknowledgeWarning: קודם לטעון מצב, ואז לאשר.
+  await ensureEngineReady();
   await confirmFromManualCheck();
 }
 
@@ -346,8 +348,9 @@ export function ensureEngineReady(): Promise<void> {
 }
 
 export async function restoreAfterRestart(): Promise<void> {
-  await loadPersistedEvents();
-  tripStateService.setHandlers(handlers);
+  // דרך ensureEngineReady ולא טעינה נפרדת: טעינה שנייה מהדיסק שמסתיימת
+  // אחרי ש"ראיתי" כבר אושר הייתה מחזירה לזיכרון את האזהרה הישנה.
+  await ensureEngineReady();
   await syncNativeConfig();
 
   /**
@@ -361,6 +364,29 @@ export async function restoreAfterRestart(): Promise<void> {
    */
   tripStateService.startEngine();
 
-  await tripStateService.hydrate();
   await consumePendingVehicleEvent();
+}
+
+/**
+ * ההורה לחץ "ראיתי, אני מטפל" על אזהרה אוטומטית.
+ *
+ * באג מבדיקת שטח: אחרי הלחיצה ההתראות המשיכו להגיע. כשהאפליקציה סגורה,
+ * הלחיצה מעירה אותה - והאישור נשלח למכונה לפני שהמצב נטען מהדיסק. המכונה
+ * עוד חשבה שאין אזהרה, התעלמה מהאישור, ושום דבר לא בוטל.
+ *
+ * לכן שני דברים: מחכים שהמצב ייטען לפני האישור, ומבטלים את כל מה שתוזמן
+ * **בכל מקרה**, בלי קשר למה שהמכונה חושבת. הורה שאמר "ראיתי" לא אמור
+ * לשמוע עוד צלצול אחד, גם אם משהו בדרך השתבש.
+ */
+export async function acknowledgeWarning(): Promise<void> {
+  // ראשון, ובלי לחכות לכלום: האזעקה והשיחה בצד הנייטיב.
+  vehicleDetection.cancelEscalation();
+
+  await ensureEngineReady();
+  await tripStateService.confirmSafe();
+
+  const ids = await TripStateStorage.loadWarningIds();
+  await cancelWarningLadder(ids);
+  await TripStateStorage.clearWarningIds();
+  logEvent(TripEventName.USER_CONFIRMED_SAFE, 'ראיתי, אני מטפל (מהתראה)');
 }
