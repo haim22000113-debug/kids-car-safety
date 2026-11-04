@@ -235,18 +235,28 @@ export async function scheduleSafetyCheckReminders(
 
   const ids: string[] = [];
   for (const reminder of getReminderDefs(settings)) {
+    const channelId = reminder.urgent ? WARNING_CHANNEL_URGENT : REMINDER_CHANNEL;
     try {
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: 'עוצרים רגע',
           body: reminder.body,
           sound: settings.soundEnabled,
+          // התזכורות הדחופות מקבלות את אותו כפתור "ראיתי, אני מטפל" כמו
+          // האזהרה האוטומטית. tripId ב-data הוא מה שמאפשר ל-_layout לדעת
+          // שזו נסיעה ידנית ולאשר אותה.
+          ...(reminder.urgent
+            ? {
+                categoryIdentifier: WARNING_CATEGORY,
+                priority: Notifications.AndroidNotificationPriority.MAX,
+              }
+            : {}),
           data: { tripId: trip.id, target: 'safety-check' },
         },
         trigger:
           reminder.minutes > 0
-            ? { ...minutesFromNow(reminder.minutes), channelId: REMINDER_CHANNEL }
-            : { channelId: REMINDER_CHANNEL },
+            ? { ...minutesFromNow(reminder.minutes), channelId }
+            : { channelId },
       });
       ids.push(id);
     } catch (error) {
@@ -341,7 +351,10 @@ export async function cancelReminders(ids: string[] | undefined): Promise<void> 
  * הניסוח בכל שלוש מכוון: אף פעם לא "שכחת ילד ברכב" - המערכת לא יודעת
  * את זה ואסור לה לטעון שהיא יודעת. רק שאלה שמחזירה את ההורה לבדוק.
  */
-export async function scheduleWarningLadder(startedAt: number = Date.now()): Promise<string[]> {
+export async function scheduleWarningLadder(
+  startedAt: number = Date.now(),
+  { includeUrgent = true }: { includeUrgent?: boolean } = {}
+): Promise<string[]> {
   const granted = await requestNotificationPermission();
   if (!granted) return [];
 
@@ -373,7 +386,7 @@ export async function scheduleWarningLadder(startedAt: number = Date.now()): Pro
   ];
 
   const ids: string[] = [];
-  for (const step of steps) {
+  for (const step of includeUrgent ? steps : steps.slice(0, 1)) {
     const inMs = step.at - now;
     // יותר מחמש שניות בעבר - כבר לא רלוונטי.
     if (inMs < -5000) continue;

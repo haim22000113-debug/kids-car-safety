@@ -22,7 +22,13 @@ interface VehicleDetectionNativeModule extends NativeModule {
   clearPendingEvent(): void;
   getHistory(): string;
   clearHistory(): void;
-  configureEscalation(name: string, phone: string, deadlineMs: number, countdownMs: number): void;
+  configureEscalation(
+    name: string,
+    phone: string,
+    deadlineMs: number,
+    countdownMs: number,
+    urgentDelayMs: number
+  ): void;
   scheduleEscalation(callAtMs: number): void;
   cancelEscalation(): void;
   consumeConfirmation(): number;
@@ -173,8 +179,22 @@ function safe<T>(fn: () => T, fallback: T): T {
 }
 
 /** מסנכרן לצד הנייטיב את איש הקשר והזמנים, כדי שיוכל לפעול בלי JavaScript. */
-export function configureEscalation(name: string, phone: string, deadlineMs: number, countdownMs: number): void {
-  safe(() => native!.configureEscalation(name, phone, deadlineMs, countdownMs), undefined);
+export function configureEscalation(
+  name: string,
+  phone: string,
+  deadlineMs: number,
+  countdownMs: number,
+  urgentDelayMs: number
+): void {
+  safe(() => native!.configureEscalation(name, phone, deadlineMs, countdownMs, urgentDelayMs), undefined);
+}
+
+/**
+ * true כשהצד הנייטיב מתזמן בעצמו את האזעקה (מתוך scheduleEscalation).
+ * אז ה-JavaScript לא מתזמן אותה שוב - אחרת היו מצלצלות שתי אזעקות.
+ */
+export function handlesUrgentAlarm(): boolean {
+  return isSupported();
 }
 
 /** מתזמן שיחה לאיש הקשר בזמן הנתון, אלא אם ההורה יאשר לפני. */

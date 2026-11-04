@@ -39,6 +39,19 @@ function openFromNotification(data: Record<string, unknown> | undefined) {
   }
 }
 
+/**
+ * הכפתור "ראיתי, אני מטפל" מופיע גם על אזהרות אוטומטיות וגם על תזכורות
+ * של נסיעה ידנית. לתזכורת ידנית יש tripId, ואז סוגרים את הנסיעה הזו.
+ */
+async function confirmFromNotification(data: Record<string, unknown> | undefined): Promise<void> {
+  const tripId = data?.tripId;
+  if (typeof tripId === 'string' && tripId) {
+    await protectionService.confirmManualTrip(tripId);
+    return;
+  }
+  await tripStateService.confirmSafe();
+}
+
 export default function RootLayout() {
   useEffect(() => {
     ensureRTL();
@@ -56,7 +69,7 @@ export default function RootLayout() {
        */
       if (response.actionIdentifier === ACTION_CONFIRM_SAFE) {
         trackEvent(AnalyticsEvent.REMINDER_OPENED);
-        void tripStateService.confirmSafe();
+        void confirmFromNotification(response.notification.request.content.data);
         router.replace('/safe');
         return;
       }
@@ -68,7 +81,7 @@ export default function RootLayout() {
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       if (response.actionIdentifier === ACTION_CONFIRM_SAFE) {
-        void tripStateService.confirmSafe();
+        void confirmFromNotification(response.notification.request.content.data);
         router.replace('/safe');
         return;
       }

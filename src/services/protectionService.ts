@@ -9,6 +9,7 @@ import * as vehicleDetection from '../../modules/vehicle-detection';
 import {
   scheduleWarningLadder,
   cancelWarningLadder,
+  cancelReminders,
 } from '../notifications/notificationService';
 import { logEvent, TripEventName, loadPersistedEvents } from './eventLog';
 
@@ -30,6 +31,10 @@ const CALL_DEADLINE_MS =
     config.ESCALATION_DELAY_SECONDS +
     config.CALL_COUNTDOWN_SECONDS) *
   1000;
+
+/** כמה זמן מהזיהוי ועד האזעקה. אותו חישוב כמו בשרשרת ב-notificationService. */
+const URGENT_ALARM_DELAY_MS =
+  (config.FIRST_WARNING_DELAY_SECONDS + config.SECOND_WARNING_DELAY_SECONDS) * 1000;
 
 function endOfToday(): number {
   const d = new Date();
@@ -53,7 +58,8 @@ export async function syncNativeConfig(): Promise<void> {
     user.emergencyContact?.name ?? '',
     user.emergencyContact?.phone ?? '',
     CALL_DEADLINE_MS,
-    config.CALL_COUNTDOWN_SECONDS * 1000
+    config.CALL_COUNTDOWN_SECONDS * 1000,
+    URGENT_ALARM_DELAY_MS
   );
 
   // אם הצד הנייטיב כבר ניצל את הדילוג החד-פעמי ("רק לנסיעה הזו"),
@@ -111,7 +117,11 @@ const handlers: tripStateService.Handlers = {
 
     // מתזמנים את כל שרשרת ההתראות עכשיו, לא שלב-שלב: זו הדרך היחידה
     // שבה האזעקה תגיע גם אם האפליקציה כבר לא רצה.
-    const ids = await scheduleWarningLadder(startedAt);
+    // כשהצד הנייטיב קיים, את האזעקה הוא מתזמן (scheduleEscalation למטה),
+    // כי הוא לא תלוי בכך שה-JavaScript יתעורר. כאן רק ההתראה העדינה.
+    const ids = await scheduleWarningLadder(startedAt, {
+      includeUrgent: !vehicleDetection.handlesUrgentAlarm(),
+    });
     await TripStateStorage.saveWarningIds(ids);
 
     // השיחה לאיש הקשר מתוזמנת בצד הנייטיב. אם המקלט הנייטיב כבר תזמן
@@ -210,6 +220,24 @@ export async function confirmFromManualCheck(): Promise<void> {
   if (state !== TripState.ACTIVE && state !== TripState.POSSIBLE_TRIP) {
     await tripStateService.confirmSafe();
   }
+}
+
+/**
+ * ההורה לחץ "ראיתי, אני מטפל" על תזכורת של נסיעה ידנית.
+ *
+ * "ראיתי" מספיק, כמו באזהרה האוטומטית: ההורה לא צריך להוכיח שהילדים כבר
+ * בחוץ, רק שהוא ראה ומטפל. לכן הנסיעה נסגרת והתזכורות שנשארו מבוטלות -
+ * אחרת האזעקה הבאה הייתה מצלצלת על הורה שכבר אמר שהוא מטפל.
+ */
+export async function confirmManualTrip(tripId: string): Promise<void> {
+  const trip = await TripStorage.getTripById(tripId);
+  if (!trip) return;
+  await cancelReminders(trip.reminderNotificationIds);
+  if (trip.status !== 'CONFIRMED') {
+    await TripStorage.saveTrip({ ...trip, confirmedAt: new Date().toISOString(), status: 'CONFIRMED' });
+  }
+  logEvent(TripEventName.USER_CONFIRMED_SAFE, 'אושר מתזכורת של נסיעה ידנית');
+  await confirmFromManualCheck();
 }
 
 export function isStarted(): boolean {

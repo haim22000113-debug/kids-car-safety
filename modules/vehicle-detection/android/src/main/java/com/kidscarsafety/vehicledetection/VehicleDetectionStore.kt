@@ -84,6 +84,7 @@ object VehicleDetectionStore {
   private const val KEY_CONTACT_PHONE = "contact_phone"
   private const val KEY_CALL_DEADLINE_MS = "call_deadline_ms"
   private const val KEY_COUNTDOWN_MS = "countdown_ms"
+  private const val KEY_URGENT_DELAY_MS = "urgent_delay_ms"
   private const val KEY_ESC_STATE = "escalation_state"
   private const val KEY_ESC_FOR = "escalation_for"
   private const val KEY_ESC_CALL_AT = "escalation_call_at"
@@ -98,12 +99,15 @@ object VehicleDetectionStore {
   const val ESC_CANCELLED = "CANCELLED"
   const val ESC_CALLED = "CALLED"
 
-  fun setEscalationConfig(context: Context, name: String, phone: String, deadlineMs: Long, countdownMs: Long) {
+  fun setEscalationConfig(
+    context: Context, name: String, phone: String, deadlineMs: Long, countdownMs: Long, urgentDelayMs: Long
+  ) {
     prefs(context).edit()
       .putString(KEY_CONTACT_NAME, name)
       .putString(KEY_CONTACT_PHONE, phone)
       .putLong(KEY_CALL_DEADLINE_MS, deadlineMs)
       .putLong(KEY_COUNTDOWN_MS, countdownMs)
+      .putLong(KEY_URGENT_DELAY_MS, urgentDelayMs)
       .apply()
   }
 
@@ -111,6 +115,8 @@ object VehicleDetectionStore {
   fun getContactPhone(context: Context): String = prefs(context).getString(KEY_CONTACT_PHONE, "") ?: ""
   fun getCallDeadlineMs(context: Context): Long = prefs(context).getLong(KEY_CALL_DEADLINE_MS, 120_000L)
   fun getCountdownMs(context: Context): Long = prefs(context).getLong(KEY_COUNTDOWN_MS, 10_000L)
+  /** כמה זמן מהיציאה מהרכב עד האזעקה. ברירת המחדל זהה ל-config.ts. */
+  fun getUrgentDelayMs(context: Context): Long = prefs(context).getLong(KEY_URGENT_DELAY_MS, 60_000L)
 
   // commit ולא apply: השלב נקרא מיד ברכיב אחר, ואסור שהכתיבה תהיה עדיין בדרך.
   fun setEscalationState(context: Context, state: String) {

@@ -134,8 +134,8 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
      * בסדר. התראה מבהילה ברגע הזה היא מה שגורם להורים לכבות התראות,
      * ואז הם מאבדים גם את האזהרות שבאמת חשובות.
      *
-     * ההסלמה מגיעה אחר כך ומ-JavaScript: ארבע דקות בלי תגובה ואילך,
-     * בעוצמת שעון מעורר. ראה scheduleWarningLadder.
+     * האזעקה מגיעה אחר כך, בעוצמת שעון מעורר, ממעורר ש-EscalationScheduler
+     * מתזמן מיד למטה - בלי לחכות ל-JavaScript.
      */
     try {
       NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build())

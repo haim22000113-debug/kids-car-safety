@@ -16,6 +16,13 @@ describe('getReminderDefs', () => {
     expect(defs[2].body).toBe('לא התקבלה תגובה. בדוק את הרכב.');
   });
 
+  it('הראשונה עדינה, השתיים שאחריה בעוצמת אזעקה', () => {
+    // בדיקת שטח: הורה שהתעלם מהתזכורת הראשונה לא שמע את הבאות, כי כולן
+    // היו צליל קצר רגיל. אם מישהו מחזיר אותן לעדינות - הבדיקה נכשלת.
+    const defs = getReminderDefs(DEFAULT_REMINDER_SETTINGS);
+    expect(defs.map((d) => d.urgent)).toEqual([false, true, true]);
+  });
+
   it('משתמש בזמנים מההגדרות ולא בערכים קבועים', () => {
     const custom = { ...DEFAULT_REMINDER_SETTINGS, firstReminderMinutes: 1, secondReminderMinutes: 3, thirdReminderMinutes: 10 };
     const defs = getReminderDefs(custom);

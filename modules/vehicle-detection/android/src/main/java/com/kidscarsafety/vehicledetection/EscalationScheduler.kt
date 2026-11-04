@@ -29,9 +29,10 @@ import androidx.core.content.ContextCompat
  * והאפליקציה סגורה לגמרי, כלומר בדיוק כשה-JavaScript לא רץ.
  *
  * הזרימה:
- *   1. schedule       - מעורר מתוזמן לרגע תחילת הספירה (שיחה פחות 10 שניות)
- *   2. startCountdown - התראה על כל המסך עם ספירה לאחור + מעורר לרגע השיחה
- *   3. placeCall      - השיחה יוצאת, אלא אם בינתיים נלחץ "ראיתי"
+ *   1. schedule       - שני מעוררים: האזעקה, ותחילת הספירה (שיחה פחות 10 שניות)
+ *   2. postUrgent     - האזעקה: צליל 12 שניות בעוצמת שעון מעורר
+ *   3. startCountdown - התראה על כל המסך עם ספירה לאחור + מעורר לרגע השיחה
+ *   4. placeCall      - השיחה יוצאת, אלא אם בינתיים נלחץ "ראיתי"
  *
  * יש שני מסלולים שמגיעים לשיחה, בכוונה: מסך הספירה (כשהוא מוצג) ומעורר
  * השיחה (תמיד). אם אנדרואיד לא הציג את המסך המלא - למשל כי ההורה באמצע
@@ -42,6 +43,7 @@ object EscalationScheduler {
   const val ACTION_COUNTDOWN = "com.kidscarsafety.vehicledetection.ESCALATION_COUNTDOWN"
   const val ACTION_CALL = "com.kidscarsafety.vehicledetection.ESCALATION_CALL"
   const val ACTION_ACKNOWLEDGE = "com.kidscarsafety.vehicledetection.ESCALATION_ACKNOWLEDGE"
+  const val ACTION_URGENT = "com.kidscarsafety.vehicledetection.ESCALATION_URGENT"
 
   const val NOTIFICATION_ID = 4712
   private const val CHANNEL_ID = "escalation-v1"
@@ -50,6 +52,8 @@ object EscalationScheduler {
   private const val RC_CALL = 102
   private const val RC_ACK = 103
   private const val RC_ACTIVITY = 104
+  private const val RC_URGENT = 106
+  private const val RC_OPEN_APP = 107
 
   /** מרווח שבתוכו שני תזמונים נחשבים לאותו אירוע. */
   private const val SAME_EVENT_WINDOW_MS = 30_000L
@@ -106,11 +110,61 @@ object EscalationScheduler {
 
     val countdownAt = maxOf(now + 1_000L, callAt - VehicleDetectionStore.getCountdownMs(context))
     setAlarm(context, countdownAt, broadcast(context, ACTION_COUNTDOWN, RC_COUNTDOWN))
-    VehicleDetectionStore.appendHistory(context, "ESC_SCHEDULED", "call_in=${(callAt - now) / 1000}s")
+
+    /**
+     * האזעקה מתוזמנת כאן, באותו רגע, ולא מה-JavaScript.
+     *
+     * בדיקת שטח: ההתראה הראשונה הגיעה והאזעקה לא. את האזעקה תזמן עד
+     * עכשיו רק ה-JavaScript, והוא מתעורר רק אם משימת המיקום ברקע חיה -
+     * ובסמסונג ובשיאומי חיסכון הסוללה מרדים אותה. המעורר הזה לא תלוי בה.
+     *
+     * הזמן נגזר מרגע השיחה, כי זה מה שמגיע לכאן משני המסלולים (המקלט
+     * הנייטיב וה-JavaScript): רגע היציאה = השיחה פחות הזמן הכולל.
+     */
+    val exitAt = callAt - VehicleDetectionStore.getCallDeadlineMs(context)
+    val urgentAt = exitAt + VehicleDetectionStore.getUrgentDelayMs(context)
+    if (urgentAt < countdownAt) {
+      setAlarm(context, maxOf(now + 1_000L, urgentAt), broadcast(context, ACTION_URGENT, RC_URGENT))
+    }
+    VehicleDetectionStore.appendHistory(
+      context, "ESC_SCHEDULED", "alarm_in=${(urgentAt - now) / 1000}s call_in=${(callAt - now) / 1000}s"
+    )
+  }
+
+  /** שלב 2: האזעקה, אם ההורה עדיין לא אישר. */
+  fun postUrgent(context: Context) {
+    if (VehicleDetectionStore.getEscalationState(context) != VehicleDetectionStore.ESC_SCHEDULED) return
+    ensureChannel(context)
+
+    val name = VehicleDetectionStore.getContactName(context).ifBlank { "איש הקשר" }
+    val hasContact = VehicleDetectionStore.getContactPhone(context).isNotBlank()
+    // אותו ניסוח כמו בשרשרת של ה-JavaScript. אף פעם לא "שכחת ילד ברכב".
+    val body = if (hasContact) {
+      "לא התקבל אישור. אם לא תאשר, נתקשר ל$name."
+    } else {
+      "בדקת שכל הילדים יצאו מהרכב?"
+    }
+
+    val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+      .setSmallIcon(smallIcon(context))
+      .setContentTitle("חשוב לבדוק את הרכב עכשיו")
+      .setContentText(body)
+      .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+      .setPriority(NotificationCompat.PRIORITY_MAX)
+      .setCategory(NotificationCompat.CATEGORY_ALARM)
+      .setAutoCancel(true)
+      .addAction(0, "ראיתי, אני מטפל", acknowledgeIntent(context))
+    openAppIntent(context)?.let { builder.setContentIntent(it) }
+
+    // אותו מזהה כמו התראת הספירה: כשהספירה מתחילה היא מחליפה את האזעקה,
+    // ולא מצלצלות שתיים יחד. "ראיתי" מבטל את שתיהן.
+    post(context, builder)
+    VehicleDetectionStore.appendHistory(context, "ESC_ALARM")
   }
 
   /** ההורה אישר שראה. עוצר הכל - מעוררים, התראות, ספירה. */
   fun acknowledge(context: Context, fromUser: Boolean) {
+    cancelAlarm(context, broadcast(context, ACTION_URGENT, RC_URGENT))
     cancelAlarm(context, broadcast(context, ACTION_COUNTDOWN, RC_COUNTDOWN))
     cancelAlarm(context, broadcast(context, ACTION_CALL, RC_CALL))
     val nm = NotificationManagerCompat.from(context)
@@ -196,8 +250,9 @@ object EscalationScheduler {
 
   private fun ensureChannel(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-    val channel = NotificationChannel(CHANNEL_ID, "שיחה לאיש קשר", NotificationManager.IMPORTANCE_HIGH)
-    channel.description = "ספירה לאחור לפני שיחה לאיש הקשר, כשלא התקבל אישור."
+    // שם ותיאור מותר לעדכן בערוץ קיים (רק צליל ועוצמה לא), ולכן אותו מזהה.
+    val channel = NotificationChannel(CHANNEL_ID, "אזעקה ושיחה לאיש קשר", NotificationManager.IMPORTANCE_HIGH)
+    channel.description = "האזעקה כשלא התקבל אישור, והספירה לאחור לפני שיחה לאיש הקשר."
     channel.enableVibration(true)
     channel.vibrationPattern = longArrayOf(0, 700, 300, 700, 300, 700)
     channel.lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
@@ -210,6 +265,17 @@ object EscalationScheduler {
     )
     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     nm.createNotificationChannel(channel)
+  }
+
+  /** לחיצה על האזעקה פותחת את האפליקציה, שתציג את מסך האזהרה. */
+  private fun openAppIntent(context: Context): PendingIntent? {
+    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
+    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    launch.putExtra(VehicleTransitionReceiver.EXTRA_FROM_DETECTION, true)
+    return PendingIntent.getActivity(
+      context, RC_OPEN_APP, launch,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
   }
 
   private fun smallIcon(context: Context): Int {

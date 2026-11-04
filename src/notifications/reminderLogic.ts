@@ -3,6 +3,13 @@ import { ReminderSettings, DEFAULT_TRIP_ACTIVE_REMINDER_MINUTES } from '../model
 export interface ReminderDef {
   minutes: number;
   body: string;
+  /**
+   * true = עוצמת אזעקה (הערוץ הדחוף, צליל 12 שניות) וכפתור "ראיתי, אני
+   * מטפל". קודם כל שלוש התזכורות היו "דינג" קצר, והורה שהתעלם מהראשונה
+   * פספס בקלות גם את השתיים שאחריה - בדיוק המצב שהאזעקה נועדה לו.
+   * הראשונה נשארת עדינה, כמו באזהרה האוטומטית.
+   */
+  urgent: boolean;
 }
 
 export interface TripStartNotificationDef {
@@ -22,9 +29,9 @@ export interface TripStartNotificationDef {
  */
 export function getReminderDefs(settings: ReminderSettings): ReminderDef[] {
   return [
-    { minutes: settings.firstReminderMinutes, body: 'בדקת שהילדים יצאו מהרכב?' },
-    { minutes: settings.secondReminderMinutes, body: 'חשוב לבדוק את הרכב עכשיו.' },
-    { minutes: settings.thirdReminderMinutes, body: 'לא התקבלה תגובה. בדוק את הרכב.' },
+    { minutes: settings.firstReminderMinutes, body: 'בדקת שהילדים יצאו מהרכב?', urgent: false },
+    { minutes: settings.secondReminderMinutes, body: 'חשוב לבדוק את הרכב עכשיו.', urgent: true },
+    { minutes: settings.thirdReminderMinutes, body: 'לא התקבלה תגובה. בדוק את הרכב.', urgent: true },
   ];
 }
 
