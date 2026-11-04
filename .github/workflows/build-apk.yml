@@ -104,7 +104,16 @@ jobs:
           }
           retry create_if_missing
           retry gh release upload "$TAG" out/little-shield.apk --clobber
-          retry gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true
+          # --draft=false במפורש: בריצה אחת ה-release נוצר כטיוטה ("untagged-...")
+          # ונשאר כזה, והקישור הקבוע החזיר 404 אף שהצעד "הצליח".
+          retry gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" --draft=false
+          # לא סומכים על "הצליח" - בודקים שהקובץ באמת זמין בקישור הקבוע.
+          state=$(gh release view "$TAG" --json isDraft,assets -q '"\(.isDraft) \([.assets[].name] | join(","))"')
+          echo "מצב ה-release: $state"
+          case "$state" in
+            "false "*little-shield.apk*) echo "זמין להורדה" ;;
+            *) echo "::error::ה-release לא פורסם כראוי: $state"; exit 1 ;;
+          esac
 
       # עותק במאגר הציבורי little-shield-download, כדי שה-QR יעבוד בלי התחברות.
       # מדלג בשקט אם עוד לא הוגדר הסוד.
