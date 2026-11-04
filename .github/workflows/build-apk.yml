@@ -62,8 +62,11 @@ jobs:
           echo 'kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1536m' >> gradle.properties
           tail -n 5 gradle.properties
 
+      # מציג את מסך האבחון: זו בנייה לבדיקות שטח, לא לחנות. ראה src/diagnostics.ts.
       - name: Build release APK
         working-directory: android
+        env:
+          EXPO_PUBLIC_DIAGNOSTICS: '1'
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Rename APK

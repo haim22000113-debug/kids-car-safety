@@ -15,6 +15,11 @@ import { APP_ENV } from './config';
 export function isDiagnosticsEnabled(): boolean {
   if (APP_ENV === 'development') return true;
 
+  // הבנייה האוטומטית ב-GitHub (build-apk.yml) לא עוברת דרך EAS ולכן אין
+  // לה ערוץ preview - והמסך נעלם שוב בדיוק בבדיקות השטח. היא מסמנת את
+  // עצמה במשתנה הזה, ש-Expo מטמיע בקוד בזמן הבנייה.
+  if (process.env.EXPO_PUBLIC_DIAGNOSTICS === '1') return true;
+
   try {
     // הערוץ נקבע ב-eas.json לפי פרופיל הבנייה.
     return Updates.channel === 'preview';
