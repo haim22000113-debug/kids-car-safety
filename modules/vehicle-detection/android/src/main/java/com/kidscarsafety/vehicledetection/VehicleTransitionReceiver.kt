@@ -37,9 +37,25 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
     const val CHANNEL_ID = "vehicle-exit-gentle-v3"
     const val NOTIFICATION_ID = 4711
     const val EXTRA_FROM_DETECTION = "from_vehicle_detection"
+    const val EXTRA_RECEIVER_TOKEN = "vehicle_transition_receiver_token"
   }
 
   override fun onReceive(context: Context, intent: Intent) {
+    // The component must be exported for Google Play Services. Authenticate
+    // its PendingIntent capability before parsing any caller-supplied parcelable.
+    if (!VehicleDetectionStore.hasValidReceiverToken(
+        context,
+        intent.getStringExtra(EXTRA_RECEIVER_TOKEN)
+      )
+    ) return
+
+    // A callback may already be queued when the user disables protection.
+    // Never let that stale callback start a new warning or emergency call.
+    if (!VehicleDetectionStore.isTracking(context)) {
+      VehicleDetectionStore.appendHistory(context, "EVENT_IGNORED_TRACKING_DISABLED")
+      return
+    }
+
     if (!ActivityTransitionResult.hasResult(intent)) return
     val result = ActivityTransitionResult.extractResult(intent) ?: return
 
