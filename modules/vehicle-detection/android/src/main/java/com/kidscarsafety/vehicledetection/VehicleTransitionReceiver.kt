@@ -50,12 +50,12 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
       // allowing a parcel/type error to crash the receiver process.
       return
     }
-    if (!VehicleDetectionStore.hasValidReceiverToken(context, suppliedToken)) return
-
-    // A callback may already be queued when the user disables protection.
-    // Never let that stale callback start a new warning or emergency call.
-    if (!VehicleDetectionStore.isTracking(context)) {
-      VehicleDetectionStore.appendHistory(context, "EVENT_IGNORED_TRACKING_DISABLED")
+    val expectedToken = VehicleDetectionStore.getOrCreateReceiverToken(context)
+    val trackingEnabled = VehicleDetectionStore.isTracking(context)
+    if (!VehicleTransitionGuard.shouldProcess(expectedToken, suppliedToken, trackingEnabled)) {
+      if (suppliedToken == expectedToken && !trackingEnabled) {
+        VehicleDetectionStore.appendHistory(context, "EVENT_IGNORED_TRACKING_DISABLED")
+      }
       return
     }
 
