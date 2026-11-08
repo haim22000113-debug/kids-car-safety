@@ -158,7 +158,7 @@ export default function Permissions() {
         <Item
           title="התראות"
           granted={notifications}
-          description="בלעדיהן המערכת יכולה לזהות שיצאת מהרכב — ופשוט לא להגיע אליך."
+          description="בלי ההרשאה ייתכן שלא תראה את האזהרות. אם זוהתה יציאה ולא התקבל אישור, עדיין עשויה להתבצע שיחה לאיש הקשר שהגדרת."
           action={
             <Button
               title="אפשר התראות"
