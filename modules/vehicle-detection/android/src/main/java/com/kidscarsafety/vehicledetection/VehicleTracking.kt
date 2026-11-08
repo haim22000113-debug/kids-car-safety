@@ -20,7 +20,9 @@ import com.google.android.gms.location.DetectedActivity
 object VehicleTracking {
 
   private fun pendingIntent(context: Context): PendingIntent {
-    val intent = Intent(context, VehicleTransitionReceiver::class.java)
+    val intent = Intent(context, VehicleTransitionReceiver::class.java).apply {
+      putExtra(VehicleTransitionReceiver.EXTRA_RECEIVER_TOKEN, VehicleDetectionStore.getOrCreateReceiverToken(context))
+    }
     // FLAG_MUTABLE נדרש: Google Play Services מוסיפה לכוונה את פרטי
     // המעבר שזוהה לפני שהיא שולחת אותה. עם FLAG_IMMUTABLE השידור יגיע ריק.
     val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -69,21 +71,37 @@ object VehicleTracking {
       VehicleDetectionStore.setTracking(context, false)
       VehicleDetectionStore.appendHistory(context, "REGISTER_NO_PERMISSION")
       onResult(false, null)
+    } catch (e: Exception) {
+      VehicleDetectionStore.setTracking(context, false)
+      VehicleDetectionStore.appendHistory(context, "REGISTER_FAIL", e.message ?: e.javaClass.simpleName)
+      onResult(false, e)
     }
   }
 
   fun stop(context: Context, onResult: (Boolean, Throwable?) -> Unit) {
+    // Disable event processing immediately. A callback already queued by Play
+    // Services must not restart warnings/escalation after the user turns protection off.
+    VehicleDetectionStore.setTracking(context, false)
+    VehicleDetectionStore.appendHistory(context, "STOP_REQUESTED")
     try {
       ActivityRecognition.getClient(context)
         .removeActivityTransitionUpdates(pendingIntent(context))
         .addOnSuccessListener {
-          VehicleDetectionStore.setTracking(context, false)
+          VehicleDetectionStore.appendHistory(context, "STOP_OK")
           onResult(true, null)
         }
-        .addOnFailureListener { error -> onResult(false, error) }
+        .addOnFailureListener { error ->
+          VehicleDetectionStore.appendHistory(context, "STOP_REMOVE_FAIL", error.message ?: "")
+          // Keep the local guard disabled even if Play Services could not remove
+          // its registration. The receiver will ignore any late callback.
+          onResult(false, error)
+        }
     } catch (e: SecurityException) {
-      VehicleDetectionStore.setTracking(context, false)
+      VehicleDetectionStore.appendHistory(context, "STOP_NO_PERMISSION")
       onResult(true, null)
+    } catch (e: Exception) {
+      VehicleDetectionStore.appendHistory(context, "STOP_REMOVE_FAIL", e.message ?: e.javaClass.simpleName)
+      onResult(false, e)
     }
   }
 }
