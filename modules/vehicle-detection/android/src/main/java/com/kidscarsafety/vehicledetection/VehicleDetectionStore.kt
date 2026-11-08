@@ -223,8 +223,4 @@ object VehicleDetectionStore {
     return generated
   }
 
-  fun hasValidReceiverToken(context: Context, candidate: String?): Boolean {
-    if (candidate.isNullOrBlank()) return false
-    return candidate == getOrCreateReceiverToken(context)
-  }
 }
