@@ -92,18 +92,38 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           // יצא מהרכב: זה הרגע שכל המוצר קיים בשבילו.
           val now = System.currentTimeMillis()
           VehicleDetectionStore.recordEvent(context, VehicleDetectionStore.EVENT_EXIT, now)
-          notifyExitedVehicle(context)
+          val warningShown = notifyExitedVehicle(context)
+          if (!warningShown) {
+            // Keep the contact escalation as a fail-safe when notifications
+            // are denied/blocked; record that the parent may not have seen
+            // the first warning so this is diagnosable and disclosed in UI.
+            VehicleDetectionStore.appendHistory(context, "ESCALATION_WITHOUT_VISIBLE_WARNING")
+          }
 
-          // ההסלמה מתוזמנת כאן ולא מה-JavaScript, כי ה-JavaScript לא רץ
-          // עכשיו. אם ההורה לא יאשר - השיחה תצא בזמן גם כשהאפליקציה מתה.
+          // The contact escalation intentionally remains active as a safety
+          // fallback even when Android blocks notifications.
           EscalationScheduler.schedule(context, now + VehicleDetectionStore.getCallDeadlineMs(context))
         }
       }
     }
   }
 
-  private fun notifyExitedVehicle(context: Context) {
+  private fun notifyExitedVehicle(context: Context): Boolean {
     createChannel(context)
+
+    val notificationManager = NotificationManagerCompat.from(context)
+    if (!notificationManager.areNotificationsEnabled()) {
+      VehicleDetectionStore.appendHistory(context, "NOTIFY_BLOCKED", "app notifications disabled")
+      return false
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+        .getNotificationChannel(CHANNEL_ID)
+      if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
+        VehicleDetectionStore.appendHistory(context, "NOTIFY_BLOCKED", "vehicle warning channel disabled")
+        return false
+      }
+    }
 
     // לחיצה על ההתראה פותחת את האפליקציה. היא תקרא בעצמה מה קרה
     // (דרך VehicleDetectionStore) ותנווט למסך בדיקת הבטיחות.
@@ -157,12 +177,14 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
      * בעוצמת שעון מעורר. ראה scheduleWarningLadder.
      */
     try {
-      NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build())
+      notificationManager.notify(NOTIFICATION_ID, builder.build())
       VehicleDetectionStore.appendHistory(context, "NOTIFY_OK")
+      return true
     } catch (e: SecurityException) {
       VehicleDetectionStore.appendHistory(context, "NOTIFY_BLOCKED", "no notification permission")
-      // באנדרואיד 13 ומעלה ההורה יכול לסרב להרשאת התראות.
-      // לא מקריסים - האירוע כבר נרשם, והאפליקציה תציג את הבדיקה בפתיחה הבאה.
+      // Android may block notifications even while the activity event is valid.
+      // The native contact escalation remains the fail-safe path.
+      return false
     }
   }
 
