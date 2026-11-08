@@ -39,6 +39,8 @@ android {
 }
 
 dependencies {
+  testImplementation 'junit:junit:4.13.2'
+
   /**
    * זיהוי מצבי תנועה. חלק מ-Google Play Services.
    *

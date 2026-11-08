@@ -18,6 +18,7 @@ object VehicleDetectionStore {
   private const val KEY_LAST_EVENT = "last_event"
   private const val KEY_LAST_EVENT_AT = "last_event_at"
   private const val KEY_TRACKING = "tracking_enabled"
+  private const val KEY_RECEIVER_TOKEN = "receiver_auth_token"
 
   /**
    * מתי זוהתה הכניסה לרכב, בנפרד מהאירוע האחרון.
@@ -203,4 +204,23 @@ object VehicleDetectionStore {
   }
 
   fun isTracking(context: Context): Boolean = prefs(context).getBoolean(KEY_TRACKING, false)
+
+  /**
+   * Secret capability token embedded in the Google Play Services PendingIntent.
+   * The receiver is exported so Play Services can reach it; the token prevents
+   * arbitrary apps from forging a transition broadcast by targeting the component.
+   */
+  @Synchronized
+  fun getOrCreateReceiverToken(context: Context): String {
+    val preferences = prefs(context)
+    val existing = preferences.getString(KEY_RECEIVER_TOKEN, null)
+    if (!existing.isNullOrBlank()) return existing
+
+    val generated = java.util.UUID.randomUUID().toString()
+    check(preferences.edit().putString(KEY_RECEIVER_TOKEN, generated).commit()) {
+      "Unable to persist vehicle receiver authentication token"
+    }
+    return generated
+  }
+
 }
