@@ -43,11 +43,14 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     // The component must be exported for Google Play Services. Authenticate
     // its PendingIntent capability before parsing any caller-supplied parcelable.
-    if (!VehicleDetectionStore.hasValidReceiverToken(
-        context,
-        intent.getStringExtra(EXTRA_RECEIVER_TOKEN)
-      )
-    ) return
+    val suppliedToken = try {
+      intent.getStringExtra(EXTRA_RECEIVER_TOKEN)
+    } catch (_: RuntimeException) {
+      // An untrusted sender may supply a malformed extra. Reject it without
+      // allowing a parcel/type error to crash the receiver process.
+      return
+    }
+    if (!VehicleDetectionStore.hasValidReceiverToken(context, suppliedToken)) return
 
     // A callback may already be queued when the user disables protection.
     // Never let that stale callback start a new warning or emergency call.
