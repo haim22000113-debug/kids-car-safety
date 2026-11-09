@@ -37,6 +37,13 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
     const val CHANNEL_ID = "vehicle-exit-gentle-v3"
     const val NOTIFICATION_ID = 4711
     const val EXTRA_FROM_DETECTION = "from_vehicle_detection"
+
+    /**
+     * מעבר שקרה עד כדי כך לפני המעבר האחרון שכבר התקבל נחשב לאותו מעבר.
+     * השעון של המכשיר ושעון האתחול זזים מעט זה מול זה, ולכן אותו מעבר
+     * בדיוק יכול לצאת שנייה-שתיים "מאוחר יותר" בכל חישוב.
+     */
+    private const val SAME_TRANSITION_TOLERANCE_MS = 10_000L
   }
 
   override fun onReceive(context: Context, intent: Intent) {
@@ -44,11 +51,41 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
     val result = ActivityTransitionResult.extractResult(intent) ?: return
 
     for (event in result.transitionEvents) {
-      if (event.activityType != DetectedActivity.IN_VEHICLE) continue
-
       // כמה שניות עברו מהרגע שהמעבר קרה בפועל ועד שגוגל מסרה אותו לנו.
       // זה המספר שמבדיל בין "גוגל לא זיהתה" לבין "גוגל זיהתה באיחור".
-      val delaySec = (SystemClock.elapsedRealtimeNanos() - event.elapsedRealTimeNanos) / 1_000_000_000L
+      val delayMs = (SystemClock.elapsedRealtimeNanos() - event.elapsedRealTimeNanos) / 1_000_000L
+      val delaySec = delayMs / 1000L
+
+      // תחילת הליכה: רק ליומן. ראה VehicleTracking.buildRequest.
+      if (event.activityType == DetectedActivity.WALKING || event.activityType == DetectedActivity.ON_FOOT) {
+        if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
+          val kind = if (event.activityType == DetectedActivity.WALKING) "walking" else "on_foot"
+          VehicleDetectionStore.appendHistory(context, "WALK", "$kind delay=${delaySec}s")
+        }
+        continue
+      }
+      if (event.activityType != DetectedActivity.IN_VEHICLE) continue
+
+      /**
+       * מעבר ישן שגוגל שולחת שוב.
+       *
+       * בדיקת שטח: בכל פתיחה של האפליקציה המעקב נרשם מחדש, וגוגל שלחה שוב
+       * כניסה לרכב מלפני 17 דקות (delay=1013s) - אחרי שכבר התקבלה יציאה.
+       * האפליקציה פתחה "נסיעה חדשה" שלא קרתה. מעבר שקרה לפני המעבר האחרון
+       * שכבר התקבל הוא בהכרח ישן, ולכן מדלגים עליו.
+       */
+      val nowMs = System.currentTimeMillis()
+      val happenedAt = nowMs - delayMs
+      // שעון שהוזז אחורה (ידנית, או החלפת אזור זמן שגויה) היה משאיר "מעבר
+      // אחרון" בעתיד וחוסם כל יציאה מרכב אחריו. יציאה שהוחמצה מסוכנת
+      // הרבה יותר מכניסה כפולה, ולכן ערך מהעתיד לא נחשב.
+      val lastAt = VehicleDetectionStore.getLastTransitionAt(context).let { if (it > nowMs) 0L else it }
+      if (happenedAt <= lastAt + SAME_TRANSITION_TOLERANCE_MS) {
+        val type = if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) "ENTER" else "EXIT"
+        VehicleDetectionStore.appendHistory(context, "STALE", "$type delay=${delaySec}s")
+        continue
+      }
+      VehicleDetectionStore.setLastTransitionAt(context, happenedAt)
 
       when (event.transitionType) {
         ActivityTransition.ACTIVITY_TRANSITION_ENTER -> {

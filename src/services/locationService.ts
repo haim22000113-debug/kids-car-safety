@@ -58,6 +58,27 @@ export function onSample(listener: SampleListener): () => void {
   return () => listeners.delete(listener);
 }
 
+/**
+ * האם המעקב תקוע: אין מיקום, או שהאחרון ישן מ-LOCATION_STALE_SECONDS.
+ * המעקב מבקש מיקום כל 45 שניות גם כשהטלפון עומד, אז שתיקה ארוכה פירושה
+ * שהוא לא באמת רץ - לא שהטלפון לא זז.
+ */
+export function isLocationStale(lastAt: number | null, now: number): boolean {
+  if (!lastAt) return true;
+  return now - lastAt > config.LOCATION_STALE_SECONDS * 1000;
+}
+
+/** נקרא ממשימת הרקע. שומר רק את השעה. */
+export async function recordLocationTime(timestamp: number): Promise<void> {
+  await setItem(StorageKeys.LAST_LOCATION_AT, timestamp);
+}
+
+async function getLastLocationAt(): Promise<number | null> {
+  const stored = await getItem<number>(StorageKeys.LAST_LOCATION_AT);
+  const inMemory = getLastSample()?.timestamp ?? null;
+  return Math.max(stored ?? 0, inMemory ?? 0) || null;
+}
+
 export function toGeoPoint(location: Location.LocationObject): GeoPoint {
   return {
     latitude: location.coords.latitude,
@@ -139,8 +160,24 @@ export async function startTracking(): Promise<boolean> {
    */
   const running = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
   const version = await getItem<string>(StorageKeys.LOCATION_OPTIONS_VERSION);
-  if (running && version === LOCATION_OPTIONS_VERSION) return true;
-  if (running) {
+  if (running && version === LOCATION_OPTIONS_VERSION) {
+    /**
+     * "רץ" לא אומר ששולח. בדיקת שטח: אחרי הפעלה מחדש של הטלפון המעקב
+     * נשאר רשום, אבל השירות שמחזיק אותו לא עלה (אנדרואיד לא נותן להפעיל
+     * אותו מהרקע) - ושום מיקום לא הגיע שעה וחצי, בזמן שהאפליקציה הציגה
+     * "פעיל". כאן האפליקציה פתוחה, ולכן מותר להפעיל אותו מחדש.
+     */
+    const lastAt = await getLastLocationAt();
+    if (!isLocationStale(lastAt, Date.now())) return true;
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {});
+    const minutes = lastAt ? Math.round((Date.now() - lastAt) / 60_000) : null;
+    logEvent(
+      TripEventName.PERMISSION_CHANGED,
+      minutes === null
+        ? 'מעקב מיקום הופעל מחדש: לא נרשם מיקום'
+        : `מעקב מיקום הופעל מחדש: מיקום אחרון לפני ${minutes} דקות`
+    );
+  } else if (running) {
     // רץ עם הגדרות ישנות - עוצרים כדי להפעיל עם החדשות.
     await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {});
     logEvent(TripEventName.PERMISSION_CHANGED, 'מעקב מיקום הופעל מחדש עם הגדרות חדשות');

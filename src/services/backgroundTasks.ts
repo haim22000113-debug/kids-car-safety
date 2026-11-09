@@ -1,6 +1,13 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import { LOCATION_TASK, GEOFENCE_TASK, pushSample, toGeoPoint, getSamples } from './locationService';
+import {
+  LOCATION_TASK,
+  GEOFENCE_TASK,
+  pushSample,
+  toGeoPoint,
+  getSamples,
+  recordLocationTime,
+} from './locationService';
 import * as tripStateService from './tripStateService';
 import * as protectionService from './protectionService';
 import { logEvent, TripEventName } from './eventLog';
@@ -43,6 +50,9 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     const point = toGeoPoint(location);
     pushSample(point);
     await tripStateService.onLocation(point, getSamples());
+  }
+  if (locations.length > 0) {
+    await recordLocationTime(locations[locations.length - 1].timestamp);
   }
 
   // מקדם מעברים שתלויים רק בזמן שעבר. בהקשר רקע אין טיימר שירוץ.

@@ -30,6 +30,12 @@ object VehicleDetectionStore {
    */
   private const val KEY_LAST_ENTER_AT = "last_enter_at"
 
+  /**
+   * מתי קרה (בפועל, לא מתי נמסר) מעבר הרכב האחרון שהתקבל. לא נמחק עם
+   * clearEvent - הוא קיים כדי לזהות מעבר ישן שגוגל שולחת שוב.
+   */
+  private const val KEY_LAST_TRANSITION_AT = "last_transition_at"
+
   const val EVENT_ENTER = "ENTER_VEHICLE"
   const val EVENT_EXIT = "EXIT_VEHICLE"
 
@@ -194,6 +200,12 @@ object VehicleDetectionStore {
 
   /** מתי זוהתה הכניסה האחרונה לרכב, או 0 אם לא זוהתה כזו. */
   fun getLastEnterAt(context: Context): Long = prefs(context).getLong(KEY_LAST_ENTER_AT, 0L)
+
+  fun getLastTransitionAt(context: Context): Long = prefs(context).getLong(KEY_LAST_TRANSITION_AT, 0L)
+
+  fun setLastTransitionAt(context: Context, at: Long) {
+    prefs(context).edit().putLong(KEY_LAST_TRANSITION_AT, at).commit()
+  }
 
   /** נקרא אחרי שה-JavaScript טיפל באירוע, כדי שלא יטופל שוב בפתיחה הבאה. */
   fun clearEvent(context: Context) {

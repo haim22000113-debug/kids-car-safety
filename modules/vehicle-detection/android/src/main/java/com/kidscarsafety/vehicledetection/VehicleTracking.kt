@@ -31,9 +31,23 @@ object VehicleTracking {
     return PendingIntent.getBroadcast(context.applicationContext, 0, intent, flags)
   }
 
-  /** מבקשים בדיוק שני מעברים: כניסה לרכב ויציאה ממנו. */
+  /**
+   * כניסה לרכב ויציאה ממנו, ובנוסף תחילת הליכה.
+   *
+   * ההליכה נרשמת ביומן בלבד (WALK), ולא מפעילה שום אזהרה. בדיקת שטח: גוגל
+   * החליטה על "יצא מהרכב" כמה דקות אחרי שההורה כבר הלך. הרישום הזה בודק
+   * אם "התחיל ללכת" מגיע מוקדם יותר - ורק אם כן, יהיה שווה לפעול לפיו.
+   */
   private fun buildRequest(): ActivityTransitionRequest {
     val transitions = listOf(
+      ActivityTransition.Builder()
+        .setActivityType(DetectedActivity.WALKING)
+        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+        .build(),
+      ActivityTransition.Builder()
+        .setActivityType(DetectedActivity.ON_FOOT)
+        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+        .build(),
       ActivityTransition.Builder()
         .setActivityType(DetectedActivity.IN_VEHICLE)
         .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)

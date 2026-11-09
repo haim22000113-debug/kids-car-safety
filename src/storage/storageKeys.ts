@@ -16,4 +16,7 @@ export const StorageKeys = {
   // באיזו גרסת הגדרות רץ מעקב המיקום. כשההגדרות משתנות, מעקב שכבר רץ
   // ממשיך עם הישנות - צריך לעצור ולהפעיל מחדש. ראה locationService.
   LOCATION_OPTIONS_VERSION: '@kids_car_safety/location_options_version',
+  // מתי הגיע המיקום האחרון ממשימת הרקע. **רק שעה, בלי מיקום** - כלל
+  // הפרטיות. משמש לזהות מעקב שנראה פעיל אבל לא שולח כלום.
+  LAST_LOCATION_AT: '@kids_car_safety/last_location_at',
 } as const;
