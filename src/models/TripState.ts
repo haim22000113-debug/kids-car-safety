@@ -75,6 +75,11 @@ export interface AutoTripSnapshot {
   confirmedSafeAt?: number;
   /** האם הנסיעה הזו הופעלה ידנית ולא זוהתה אוטומטית. */
   manual: boolean;
+  /**
+   * דגימות מיקום מלפני הרגע הזה שייכות לנסיעה שכבר נסגרה, ולא נחשבות
+   * לזיהוי נסיעה חדשה. נקבע בכל כניסה למנוחה או לאישור. ראה tripStateMachine.
+   */
+  samplesSince?: number;
 }
 
 export const INITIAL_SNAPSHOT: AutoTripSnapshot = {

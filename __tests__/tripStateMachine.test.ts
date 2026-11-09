@@ -295,6 +295,40 @@ describe('בדיקת שטח: רכב חונה עם מאגר דגימות אמית
     expect(getSnapshot().state).not.toBe(TripState.LEFT_VEHICLE_AREA);
   });
 
+  it('אחרי "ראיתי" לא נפתחת נסיעה חדשה מהדגימות של הנסיעה שנגמרה', () => {
+    // בדיקת שטח: אחרי "ראיתי, אני מטפל" האזהרות חזרו כעבור כמה דקות. המאגר
+    // עדיין הכיל את הנסיעה, והדגימה הבאה "גילתה" בה נסיעה חדשה.
+    const { getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
+    const confirmAt = lastParked.timestamp + seconds(30);
+    const confirmed = run([{ kind: 'USER_CONFIRMED_SAFE', now: confirmAt }], getSnapshot()).snapshot;
+    expect(confirmed.state).toBe(TripState.CONFIRMED_SAFE);
+
+    // ממשיכים להזין את אותו מאגר: עמידה ליד הרכב, ואז הליכה ממנו.
+    let snapshot = confirmed;
+    let buffer = [...makeTrack({ startAt: T0, count: 10, intervalSeconds: 30, speedMps: 15 })];
+    for (let i = 1; i <= 6; i++) {
+      const point =
+        i < 4
+          ? makeStationary({ startAt: confirmAt + seconds(45 * i), count: 1, origin: stopOrigin })[0]
+          : makePointAtDistance(stopOrigin, 60 * i, { timestamp: confirmAt + seconds(45 * i) });
+      buffer = [...buffer, point].slice(-config.LOCATION_BUFFER_SIZE);
+      const step = run([{ kind: 'LOCATION', point, samples: buffer, now: point.timestamp }], snapshot);
+      snapshot = step.snapshot;
+      expect(step.effects).not.toContain('SEND_FIRST_WARNING');
+      expect(snapshot.state).toBe(TripState.CONFIRMED_SAFE);
+    }
+  });
+
+  it('אחרי "ראיתי", נסיעה חדשה באמת עדיין מזוהה', () => {
+    const { getSnapshot, lastParked } = parkedWithRealBuffer();
+    const confirmAt = lastParked.timestamp + seconds(30);
+    const confirmed = run([{ kind: 'USER_CONFIRMED_SAFE', now: confirmAt }], getSnapshot()).snapshot;
+    const newDrive = makeTrack({ startAt: confirmAt + seconds(600), count: 10, intervalSeconds: 30, speedMps: 15 });
+    const last = newDrive[newDrive.length - 1];
+    const step = run([{ kind: 'LOCATION', point: last, samples: newDrive, now: last.timestamp }], confirmed);
+    expect(step.snapshot.state).toBe(TripState.ACTIVE);
+  });
+
   it('אחרי עצירה אמיתית, התרחקות מהרכב מגיעה לאזהרה', () => {
     const { feed, getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
     const afterGrace = lastParked.timestamp + seconds(config.EXIT_GRACE_PERIOD_SECONDS + 240);

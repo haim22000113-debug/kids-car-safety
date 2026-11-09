@@ -61,13 +61,30 @@ export type MachineEffect =
 
 const secondsSince = (from: number, now: number) => (now - from) / 1000;
 
+/**
+ * מצבי מנוחה: מכאן מחפשים נסיעה *חדשה*.
+ *
+ * בדיקת שטח: אחרי "ראיתי, אני מטפל" האזהרות חזרו כעבור כמה דקות. המכונה
+ * חזרה למנוחה, אבל מאגר הדגימות עדיין הכיל את הנסיעה שהסתיימה - והדגימה
+ * הבאה "גילתה" בו נסיעה חדשה. משם: עצירה, התרחקות מהרכב, ואזהרה נוספת על
+ * נסיעה שכבר אושרה. לכן בכל כניסה למנוחה נרשם ממתי דגימות נחשבות.
+ */
+const REST_STATES = new Set<TripState>([TripState.IDLE, TripState.CONFIRMED_SAFE]);
+
 function transition(
   snapshot: AutoTripSnapshot,
   state: TripState,
   now: number,
   patch: Partial<AutoTripSnapshot> = {}
 ): AutoTripSnapshot {
-  return { ...snapshot, ...patch, state, stateSince: now };
+  const rest = REST_STATES.has(state) && patch.samplesSince === undefined ? { samplesSince: now } : {};
+  return { ...snapshot, ...patch, ...rest, state, stateSince: now };
+}
+
+/** רק דגימות מאז שהמכונה נכנסה למנוחה. ראה REST_STATES. */
+function samplesSinceRest(snapshot: AutoTripSnapshot, samples: GeoPoint[]): GeoPoint[] {
+  const since = snapshot.samplesSince;
+  return since ? samples.filter((p) => p.timestamp > since) : samples;
 }
 
 /**
@@ -103,7 +120,7 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
       effects.push({ type: 'REMOVE_GEOFENCE' }, { type: 'CANCEL_WARNINGS' });
       events.push({ name: TripEventName.TRIP_CANCELLED });
     }
-    return { snapshot: { ...INITIAL_SNAPSHOT, stateSince: input.now }, events, effects };
+    return { snapshot: { ...INITIAL_SNAPSHOT, stateSince: input.now, samplesSince: input.now }, events, effects };
   }
 
   if (input.kind === 'USER_CONFIRMED_SAFE') {
@@ -190,7 +207,7 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
     switch (snapshot.state) {
       case TripState.IDLE:
       case TripState.CONFIRMED_SAFE: {
-        const assessment = assessTripStart(input.samples);
+        const assessment = assessTripStart(samplesSinceRest(snapshot, input.samples));
         if (assessment.isTrip) {
           events.push({ name: TripEventName.TRIP_DETECTED, detail: assessment.reason });
           events.push({ name: TripEventName.TRIP_STARTED, detail: 'זוהה אוטומטית' });
@@ -202,7 +219,7 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
       }
 
       case TripState.POSSIBLE_TRIP: {
-        const assessment = assessTripStart(input.samples);
+        const assessment = assessTripStart(samplesSinceRest(snapshot, input.samples));
         if (assessment.isTrip) {
           events.push({ name: TripEventName.TRIP_STARTED, detail: 'זוהה אוטומטית' });
           goTo(TripState.ACTIVE, { tripStartedAt: input.now, manual: false });
