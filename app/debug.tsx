@@ -15,6 +15,7 @@ import { getEvents, clearEvents, subscribe as subscribeEvents, LoggedEvent } fro
 import { distanceFromStop } from '../src/services/geoUtils';
 import { makeTrack, makeStationary, makePointAtDistance, ORIGIN } from '../src/services/mockLocation';
 import * as vehicleDetection from '../modules/vehicle-detection';
+import { eventLabel, nativeLabel, stateLabel, translateDetail } from '../src/content/diagnosticLabels';
 
 /**
  * מסך Debug (סעיף 29).
@@ -99,16 +100,20 @@ export default function Debug() {
     const lines = [
       'Little Shield - יומן אבחון',
       'נוצר: ' + fmt(Date.now()),
-      'State: ' + snapshot.state,
+      'מצב: ' + stateLabel(snapshot.state),
       'מעקב מיקום: ' + (tracking ? 'פעיל' : 'כבוי'),
       'מיקום ברקע: ' + (permissions?.background ? 'ניתנה' : 'חסרה'),
       'זיהוי תנועה: ' + (vehicleDetection.isSupported() ? (vehicleDetection.isTracking() ? 'פעיל' : 'כבוי') : 'לא נתמך'),
       '',
-      '=== חיישנים (נייטיב) ===',
-      ...nativeHistory.map((e) => fmt(e.at) + ' | ' + e.type + (e.detail ? ' | ' + e.detail : '')),
+      '=== חיישנים (גוגל) ===',
+      ...nativeHistory.map(
+        (e) => fmt(e.at) + ' | ' + nativeLabel(e.type) + (e.detail ? ' | ' + translateDetail(e.detail) : '')
+      ),
       '',
       '=== אפליקציה ===',
-      ...events.map((e) => fmt(e.at) + ' | ' + e.name + (e.detail ? ' | ' + e.detail : '')),
+      ...events.map(
+        (e) => fmt(e.at) + ' | ' + eventLabel(e.name) + (e.detail ? ' | ' + translateDetail(e.detail) : '')
+      ),
     ];
     try {
       await Share.share({ message: lines.join(String.fromCharCode(10)) });
@@ -136,10 +141,10 @@ export default function Debug() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScreenHeader title="מסך אבחון" fallback="/settings" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.env}>סביבה: {APP_ENV}</Text>
+        <Text style={styles.env}>גרסה: {APP_ENV === 'development' ? 'פיתוח' : 'רגילה'}</Text>
 
         <Text style={styles.section}>מצב נוכחי</Text>
-        <Row label="State" value={snapshot.state} />
+        <Row label="מצב" value={stateLabel(snapshot.state)} />
         <Row label="במצב מאז" value={new Date(snapshot.stateSince).toLocaleTimeString('he-IL')} />
         <Row label="נסיעה ידנית" value={snapshot.manual ? 'כן' : 'לא'} />
         <Row
@@ -171,7 +176,7 @@ export default function Debug() {
 
         <Text style={styles.section}>מערכת</Text>
         <Row label="מעקב מיקום" value={tracking ? 'פעיל' : 'כבוי'} />
-        <Row label="Geofence" value={geofence ? 'פעיל' : 'כבוי'} />
+        <Row label="אזור סביב הרכב" value={geofence ? 'פעיל' : 'כבוי'} />
         <Row label="הרשאת מיקום" value={permissions?.foreground ? 'ניתנה' : 'חסרה'} />
         <Row label="מיקום ברקע" value={permissions?.background ? 'ניתנה' : 'חסרה'} />
         <Row
@@ -180,30 +185,30 @@ export default function Debug() {
         />
 
         <Text style={styles.section}>סימולציה</Text>
-        <Button title="Simulate Trip Start" variant="ghost" onPress={simulateTripStart} />
-        <Button title="Simulate Trip Stop" variant="ghost" onPress={simulateTripStop} />
-        <Button title="Simulate User Left Area" variant="ghost" onPress={simulateLeftArea} />
-        <Button title="Simulate Warning" variant="ghost" onPress={simulateWarning} />
-        <Button title="Simulate Vehicle Exit (חיישנים)" variant="ghost" onPress={simulateVehicleExit} />
-        <Button title="Reset Trip" variant="ghost" onPress={resetAll} />
+        <Button title="הדמיה: תחילת נסיעה" variant="ghost" onPress={simulateTripStart} />
+        <Button title="הדמיה: הרכב עצר" variant="ghost" onPress={simulateTripStop} />
+        <Button title="הדמיה: התרחקות מהרכב" variant="ghost" onPress={simulateLeftArea} />
+        <Button title="הדמיה: אזהרה" variant="ghost" onPress={simulateWarning} />
+        <Button title="הדמיה: יציאה מהרכב (חיישנים)" variant="ghost" onPress={simulateVehicleExit} />
+        <Button title="איפוס נסיעה" variant="ghost" onPress={resetAll} />
         <Button
           title="פתח מסך אזהרה"
           variant="ghost"
           onPress={() => router.push('/warning')}
         />
 
-        <Text style={styles.section}>חיישנים (נייטיב)</Text>
+        <Text style={styles.section}>חיישנים (גוגל)</Text>
         <Text style={styles.empty}>
-          כל מה שגוגל דיווחה על כניסה ויציאה מרכב. delay = כמה שניות אחרי שזה קרה בפועל
-          הדיווח הגיע. שורד סגירה של האפליקציה.
+          כל מה שגוגל דיווחה על כניסה ויציאה מרכב. "איחור" = כמה שניות אחרי שזה קרה בפועל
+          הדיווח הגיע. נשמר גם כשהאפליקציה נסגרת.
         </Text>
         {nativeHistory.length === 0 ? (
           <Text style={styles.empty}>אין רישומים עדיין</Text>
         ) : (
           nativeHistory.slice(0, 40).map((e, index) => (
             <Text key={`n-${e.at}-${index}`} style={styles.event}>
-              {new Date(e.at).toLocaleString('he-IL')} · {e.type}
-              {e.detail ? ` — ${e.detail}` : ''}
+              {new Date(e.at).toLocaleString('he-IL')} · {nativeLabel(e.type)}
+              {e.detail ? ` — ${translateDetail(e.detail)}` : ''}
             </Text>
           ))
         )}
@@ -214,8 +219,8 @@ export default function Debug() {
         ) : (
           events.slice(0, 40).map((event, index) => (
             <Text key={`${event.at}-${index}`} style={styles.event}>
-              {new Date(event.at).toLocaleTimeString('he-IL')} · {event.name}
-              {event.detail ? ` — ${event.detail}` : ''}
+              {new Date(event.at).toLocaleTimeString('he-IL')} · {eventLabel(event.name)}
+              {event.detail ? ` — ${translateDetail(event.detail)}` : ''}
             </Text>
           ))
         )}
