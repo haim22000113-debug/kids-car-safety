@@ -278,6 +278,23 @@ describe('בדיקת שטח: רכב חונה עם מאגר דגימות אמית
     }
   });
 
+  it('עצירה ברמזור ואז המשך נסיעה - אין אזהרה, גם כשהדגימה הבאה כבר רחוקה', () => {
+    // בדיקת שטח: אזהרות באמצע נסיעה. דגימה אחת אחרי העצירה, כבר 600 מטר
+    // משם (13 מ"ש), עברה את תקופת החסד ונראתה כמו "התרחק מהרכב".
+    const { feed, getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
+    const later = lastParked.timestamp + seconds(config.EXIT_GRACE_PERIOD_SECONDS + 45);
+    feed({ ...makePointAtDistance(stopOrigin, 600, { timestamp: later }), speed: null });
+    expect(getSnapshot().state).not.toBe(TripState.LEFT_VEHICLE_AREA);
+  });
+
+  it('המכשיר מדווח מהירות נסיעה - לא מתריעים גם בלי היסטוריה', () => {
+    const { feed, getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
+    const later = lastParked.timestamp + seconds(config.EXIT_GRACE_PERIOD_SECONDS + 600);
+    // עשר דקות אחרי: מרחק/זמן איטי, אבל המכשיר רואה 14 מ"ש עכשיו.
+    feed({ ...makePointAtDistance(stopOrigin, 300, { timestamp: later }), speed: 14 });
+    expect(getSnapshot().state).not.toBe(TripState.LEFT_VEHICLE_AREA);
+  });
+
   it('אחרי עצירה אמיתית, התרחקות מהרכב מגיעה לאזהרה', () => {
     const { feed, getSnapshot, lastParked, stopOrigin } = parkedWithRealBuffer();
     const afterGrace = lastParked.timestamp + seconds(config.EXIT_GRACE_PERIOD_SECONDS + 240);

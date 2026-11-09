@@ -254,6 +254,20 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
           break;
         }
 
+        /**
+         * תנועה במהירות רכב אחרי העצירה = נוסעים הלאה, לא הולכים מהרכב.
+         *
+         * בדיקת שטח: הגיעו אזהרות באמצע נסיעה. עצירה ארוכה ברמזור או בפקק
+         * נראתה כמו חניה, ואז הדגימה הבאה - כבר הרחק משם - נראתה כמו
+         * "התרחק מהרכב". אדם לא הולך ב-18 קמ"ש: אם יש אפילו דגימה אחת
+         * במהירות נסיעה, או שהמכשיר עצמו מדווח מהירות כזו, לא מתריעים.
+         * הדגימה הבאה כבר תסגור את זה כ"הנסיעה התחדשה".
+         */
+        const deviceSpeed = input.point.speed ?? 0;
+        if (startAgain.samplesAboveSpeed > 0 || deviceSpeed >= config.TRIP_SPEED_THRESHOLD_MPS) {
+          break;
+        }
+
         const graceOver =
           secondsSince(snapshot.stateSince, input.now) >= config.EXIT_GRACE_PERIOD_SECONDS;
 
