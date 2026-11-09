@@ -21,9 +21,13 @@ import * as protectionService from '../src/services/protectionService';
  */
 function openFromNotification(data: Record<string, unknown> | undefined) {
   // אזהרות ההגנה האוטומטית לא קשורות לנסיעה ידנית ואין להן tripId.
+  // לחיצה על אזהרה אוטומטית = "ראיתי, אני מטפל" (החלטת הבעלים): מי שלחץ
+  // על ההתראה ראה אותה. בסמסונג הכפתור מוסתר כשההתראה מכווצת, ובלי זה
+  // השיחה לאיש הקשר יצאה גם אחרי שההורה לחץ ופתח את האפליקציה.
   if (data?.target === 'warning') {
     trackEvent(AnalyticsEvent.REMINDER_OPENED);
-    router.push('/warning');
+    void protectionService.acknowledgeWarning();
+    router.replace('/safe');
     return;
   }
 

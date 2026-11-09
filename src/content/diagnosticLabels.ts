@@ -75,6 +75,7 @@ const WHOLE_DETAILS: Record<string, string> = {
   'no notification permission': 'אין הרשאת התראות',
   escalation: 'אזעקה ושיחה',
   native: 'מכפתור בהתראה',
+  tap: 'בלחיצה על ההתראה',
   BOOT_COMPLETED: 'הטלפון הופעל',
   LOCKED_BOOT_COMPLETED: 'הטלפון הופעל (נעול)',
   MY_PACKAGE_REPLACED: 'האפליקציה עודכנה',

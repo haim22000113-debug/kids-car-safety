@@ -72,6 +72,18 @@
       android:exported="false" />
 
     <!--
+      מסך שקוף שלא נראה: לחיצה על התראת האזהרה עוברת דרכו, נרשמת כ"ראיתי",
+      והוא פותח את האפליקציה ונסגר. ראה AcknowledgeActivity.
+    -->
+    <activity
+      android:name="com.kidscarsafety.vehicledetection.AcknowledgeActivity"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+    <!--
       מסך הספירה לאחור. מוצג מעל מסך הנעילה (showWhenLocked) ומדליק את
       המסך (turnScreenOn), כמו שעון מעורר. משימה נפרדת (taskAffinity ריק)
       כדי שלא יתערבב עם האפליקציה הרגילה וישאיר אחריו מסך תקוע.

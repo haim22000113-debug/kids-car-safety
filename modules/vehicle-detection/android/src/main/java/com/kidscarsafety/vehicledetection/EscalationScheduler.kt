@@ -53,7 +53,7 @@ object EscalationScheduler {
   private const val RC_ACK = 103
   private const val RC_ACTIVITY = 104
   private const val RC_URGENT = 106
-  private const val RC_OPEN_APP = 107
+  private const val RC_TAP_ACK = 108
 
   /** מרווח שבתוכו שני תזמונים נחשבים לאותו אירוע. */
   private const val SAME_EVENT_WINDOW_MS = 30_000L
@@ -68,6 +68,15 @@ object EscalationScheduler {
 
   /** הכפתור "ראיתי, אני מטפל" - משמש גם בהתראה הראשונה וגם בהתראת הספירה. */
   fun acknowledgeIntent(context: Context): PendingIntent = broadcast(context, ACTION_ACKNOWLEDGE, RC_ACK)
+
+  /** לחיצה על ההתראה עצמה: מאשרת "ראיתי" ופותחת את האפליקציה. ראה AcknowledgeActivity. */
+  fun tapToAcknowledgeIntent(context: Context): PendingIntent {
+    val intent = Intent(context, AcknowledgeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    return PendingIntent.getActivity(
+      context.applicationContext, RC_TAP_ACK, intent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+  }
 
   private fun setAlarm(context: Context, atMillis: Long, operation: PendingIntent) {
     val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -154,7 +163,8 @@ object EscalationScheduler {
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setAutoCancel(true)
       .addAction(0, "ראיתי, אני מטפל", acknowledgeIntent(context))
-    openAppIntent(context)?.let { builder.setContentIntent(it) }
+      // לחיצה על ההתראה עצמה = ראיתי. בסמסונג הכפתור מוסתר כשהיא מכווצת.
+      .setContentIntent(tapToAcknowledgeIntent(context))
 
     // אותו מזהה כמו התראת הספירה: כשהספירה מתחילה היא מחליפה את האזעקה,
     // ולא מצלצלות שתיים יחד. "ראיתי" מבטל את שתיהן.
@@ -163,7 +173,7 @@ object EscalationScheduler {
   }
 
   /** ההורה אישר שראה. עוצר הכל - מעוררים, התראות, ספירה. */
-  fun acknowledge(context: Context, fromUser: Boolean) {
+  fun acknowledge(context: Context, fromUser: Boolean, via: String = "native") {
     cancelAlarm(context, broadcast(context, ACTION_URGENT, RC_URGENT))
     cancelAlarm(context, broadcast(context, ACTION_COUNTDOWN, RC_COUNTDOWN))
     cancelAlarm(context, broadcast(context, ACTION_CALL, RC_CALL))
@@ -177,7 +187,7 @@ object EscalationScheduler {
     }
     if (fromUser) {
       VehicleDetectionStore.markConfirmed(context)
-      VehicleDetectionStore.appendHistory(context, "ACKNOWLEDGED", "native")
+      VehicleDetectionStore.appendHistory(context, "ACKNOWLEDGED", via)
     }
   }
 
@@ -267,17 +277,6 @@ object EscalationScheduler {
     nm.createNotificationChannel(channel)
   }
 
-  /** לחיצה על האזעקה פותחת את האפליקציה, שתציג את מסך האזהרה. */
-  private fun openAppIntent(context: Context): PendingIntent? {
-    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
-    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-    launch.putExtra(VehicleTransitionReceiver.EXTRA_FROM_DETECTION, true)
-    return PendingIntent.getActivity(
-      context, RC_OPEN_APP, launch,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-  }
-
   private fun smallIcon(context: Context): Int {
     val id = context.resources.getIdentifier("notification_icon", "drawable", context.packageName)
     return if (id != 0) id else android.R.drawable.ic_dialog_alert
@@ -328,6 +327,7 @@ object EscalationScheduler {
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setAutoCancel(true)
       .addAction(0, "ראיתי, אני מטפל", acknowledgeIntent(context))
+      .setContentIntent(tapToAcknowledgeIntent(context))
     post(context, builder)
   }
 

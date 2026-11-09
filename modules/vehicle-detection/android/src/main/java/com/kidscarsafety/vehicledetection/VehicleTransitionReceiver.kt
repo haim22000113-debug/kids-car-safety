@@ -3,7 +3,6 @@ package com.kidscarsafety.vehicledetection
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -123,23 +122,6 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
   private fun notifyExitedVehicle(context: Context) {
     createChannel(context)
 
-    // לחיצה על ההתראה פותחת את האפליקציה. היא תקרא בעצמה מה קרה
-    // (דרך VehicleDetectionStore) ותנווט למסך בדיקת הבטיחות.
-    val launchIntent = context.packageManager
-      .getLaunchIntentForPackage(context.packageName)
-      ?.apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        putExtra(EXTRA_FROM_DETECTION, true)
-      }
-
-    val pendingIntent = launchIntent?.let {
-      PendingIntent.getActivity(
-        context,
-        0,
-        it,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-      )
-    }
 
     val iconId = context.resources.getIdentifier(
       "notification_icon", "drawable", context.packageName
@@ -157,7 +139,9 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setAutoCancel(true)
 
-    if (pendingIntent != null) builder.setContentIntent(pendingIntent)
+    // לחיצה על ההתראה עצמה = "ראיתי, אני מטפל", ואז נפתחת האפליקציה.
+    // בסמסונג הכפתורים מוסתרים כשההתראה מכווצת, וההורה פשוט לוחץ עליה.
+    builder.setContentIntent(EscalationScheduler.tapToAcknowledgeIntent(context))
 
     // הכפתור שעוצר הכל, כולל השיחה לאיש הקשר. "ראיתי" ולא "כולם יצאו":
     // ההורה רק צריך להגיד שהוא ראה ומטפל, לא להוכיח שהילדים כבר בחוץ.

@@ -49,6 +49,9 @@ describe('יומן האבחון בעברית', () => {
     expect(translateDetail('ACTIVE → GRACE_PERIOD')).toBe('בנסיעה → זמן חסד');
     expect(translateDetail('WARNING → CONFIRMED_SAFE')).toBe('אזהרה → אושר');
     expect(translateDetail('children not with me')).toBe('הילדים לא איתי');
+    expect(nativeLabel('ACKNOWLEDGED') + ' — ' + translateDetail('tap')).toBe(
+      'נלחץ: ראיתי, אני מטפל — בלחיצה על ההתראה'
+    );
     expect(translateDetail('BOOT_COMPLETED')).toBe('הטלפון הופעל');
     expect(translateDetail('ENTER delay=1013s')).toBe('כניסה, איחור של 1013 שניות');
     expect(translateDetail('הגנה: מיקום=true, תנועה=false')).toBe('הגנה: מיקום=כן, תנועה=לא');
