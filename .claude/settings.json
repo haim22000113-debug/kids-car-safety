@@ -1,0 +1,17 @@
+{
+  "language": "hebrew",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/hebrew-only.py\"",
+            "timeout": 15,
+            "statusMessage": "בודק שהתשובה בעברית"
+          }
+        ]
+      }
+    ]
+  }
+}
