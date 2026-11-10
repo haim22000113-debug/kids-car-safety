@@ -10,12 +10,21 @@
 
 "משפט באנגלית" = חמש מילים לטיניות ברצף או יותר, אחרי שמסירים קוד, נתיבי
 קבצים וקישורים. שמות כמו Little Shield או קודים כמו TRIP_STOPPED לא נחשבים.
+
+עדכון (בקשת הבעלים, 10.11): מותר לכתוב באנגלית **ומיד אחריה בעברית**, כדי
+שהבעלים ילמד אנגלית. לכן נחסמת רק הודעה שיש בה אנגלית ואין בה כמעט עברית -
+כלומר הודעה באנגלית בלי תרגום. בהודעה דו-לשונית יש בערך כמות דומה של
+אותיות עבריות, וזה מה שנבדק.
 """
 import json
 import re
 import sys
 
 MIN_WORDS = 5
+
+# עברית קצרה יותר מאנגלית באותיות (בלי ניקוד), אז הודעה דו-לשונית מלאה
+# מגיעה בערך ל-0.6-0.8. מתחת ל-0.35 - חסר תרגום.
+MIN_HEBREW_RATIO = 0.35
 
 
 def text_blocks(content):
@@ -72,14 +81,18 @@ def main():
             written.extend(text_blocks((e.get("message") or {}).get("content")))
 
     for text in written:
-        match = ENGLISH_RUN.search(strip_technical(text))
-        if match:
+        clean = strip_technical(text)
+        match = ENGLISH_RUN.search(clean)
+        latin = len(re.findall(r"[A-Za-z]", clean))
+        hebrew = len(re.findall(r"[\u0590-\u05FF]", clean))
+        if match and hebrew < MIN_HEBREW_RATIO * latin:
             print(json.dumps({
                 "decision": "block",
                 "reason": (
-                    "כתבת לבעלים משפט באנגלית: \"" + match.group(0)[:120] + "\". "
-                    "הבעלים ביקש שוב ושוב: כל הודעה אליו בעברית בלבד, גם הודעות ביניים. "
-                    "כתוב עכשיו הודעה קצרה בעברית שמסכמת את מה שנכתב באנגלית בתור הזה."
+                    "כתבת לבעלים באנגלית בלי תרגום: \"" + match.group(0)[:120] + "\". "
+                    "הכלל של הבעלים: כל הודעה אליו באנגלית ומיד אחריה אותו דבר בעברית, "
+                    "גם הודעות ביניים. כתוב עכשיו הודעה שמסכמת את מה שנכתב בתור הזה - "
+                    "באנגלית ומיד אחריה בעברית."
                 ),
             }, ensure_ascii=False))
             return 0
