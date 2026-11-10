@@ -28,6 +28,13 @@
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
   <uses-permission android:name="android.permission.VIBRATE" />
 
+  <!--
+    מאפשר לפתוח את חלון המערכת "לאפשר לאפליקציה לפעול ברקע ללא הגבלה?".
+    בלי פטור מחיסכון סוללה, סמסונג ויצרנים אחרים חוסמים את ההודעות מגוגל
+    כשהאפליקציה ברקע, והאזהרה מגיעה רק כשההורה פותח את האפליקציה.
+  -->
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
   <application>
     <!--
       המקלט שגוגל מעירה כשמתרחש מעבר בין מצבי תנועה.

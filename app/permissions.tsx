@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, AppState, PermissionsAndroid, Platform } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
@@ -32,6 +33,7 @@ export default function Permissions() {
   const [motion, setMotion] = useState(false);
   const [call, setCall] = useState(false);
   const [fullScreen, setFullScreen] = useState(true);
+  const [battery, setBattery] = useState(true);
   /** איזו בקשה רצה כרגע, או null. לא בוליאני אחד משותף - ראה הערה למטה. */
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -52,6 +54,7 @@ export default function Permissions() {
         setCall(false);
       }
       setFullScreen(vehicleDetection.canUseFullScreenIntent());
+      setBattery(vehicleDetection.isIgnoringBatteryOptimizations());
     }
   }, []);
 
@@ -101,6 +104,31 @@ export default function Permissions() {
     }
   };
 
+  /**
+   * פטור מחיסכון סוללה: חלון מערכת אחד, "לאפשר ללא הגבלה?" ← אפשר.
+   *
+   * בדיקת שטח בסמסונג: בלי זה ההודעות מגוגל על יציאה מהרכב הגיעו רק כשההורה
+   * פתח את האפליקציה - 35 דקות באיחור. הורה לא אמור לחפש את זה בעצמו
+   * בהגדרות, ולכן זה חלק מההגדרה הראשונית. אם החלון לא נפתח (יש יצרנים
+   * שחוסמים אותו), נופלים לרשימת חיסכון הסוללה, ומשם למסך האפליקציה.
+   */
+  const askBattery = async () => {
+    const pkg = Constants.expoConfig?.android?.package ?? 'com.kidscarsafety.app';
+    try {
+      await IntentLauncher.startActivityAsync('android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS', {
+        data: 'package:' + pkg,
+      });
+    } catch {
+      try {
+        await IntentLauncher.startActivityAsync('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS');
+      } catch {
+        await Linking.openSettings();
+      }
+    }
+    await refresh();
+  };
+  const isSamsung = (Device.manufacturer ?? '').toLowerCase().includes('samsung');
+
   const done = () => router.replace(fromOnboarding ? '/home' : '/settings');
 
   /**
@@ -113,7 +141,7 @@ export default function Permissions() {
    */
   const motionOk = !vehicleDetection.isSupported() || motion;
   const callOk = Platform.OS !== 'android' || call;
-  const allGood = foreground && background && notifications && motionOk && callOk && fullScreen;
+  const allGood = foreground && background && notifications && motionOk && callOk && fullScreen && battery;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -198,6 +226,25 @@ export default function Permissions() {
                 onPress={askCall}
                 loading={busyAction === 'call'}
               />
+            }
+          />
+        ) : null}
+
+        {Platform.OS === 'android' ? (
+          <Item
+            title="פעולה ברקע ללא הגבלה"
+            granted={battery}
+            description="חיסכון הסוללה של הטלפון עלול להרדים את האפליקציה ולעכב את האזהרה בדקות ארוכות. אישור אחד מונע את זה. ההשפעה על הסוללה קטנה."
+            action={
+              <>
+                <Button title="אפשר" variant="ghost" onPress={askBattery} />
+                {isSamsung ? (
+                  <Text style={styles.hint}>
+                    בסמסונג כדאי לוודא גם שהאפליקציה לא מופיעה ברשימת &quot;אפליקציות במצב שינה&quot;
+                    (הגדרות ← טיפול בסוללה ובמכשיר ← סוללה ← הגבלות שימוש ברקע).
+                  </Text>
+                ) : null}
+              </>
             }
           />
         ) : null}

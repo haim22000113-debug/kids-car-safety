@@ -35,6 +35,7 @@ interface VehicleDetectionNativeModule extends NativeModule {
   setSuppression(untilMs: number, nextOnce: boolean): void;
   consumeSuppressionUsed(): boolean;
   canUseFullScreenIntent(): boolean;
+  isIgnoringBatteryOptimizations(): boolean;
 }
 
 /** רשומה ביומן האבחון הנייטיב. אין בה מיקום - רק סוג, שעה ופרטים טכניים. */
@@ -224,4 +225,12 @@ export function consumeSuppressionUsed(): boolean {
 /** מאנדרואיד 14, מסך מלא מעל מסך הנעילה דורש אישור ידני. */
 export function canUseFullScreenIntent(): boolean {
   return safe(() => native!.canUseFullScreenIntent(), true);
+}
+
+/**
+ * האם האפליקציה פטורה מחיסכון הסוללה. true כשהמודול לא קיים (אייפון),
+ * כדי לא להציג להורה שם בעיה שאין לה פתרון.
+ */
+export function isIgnoringBatteryOptimizations(): boolean {
+  return safe(() => native!.isIgnoringBatteryOptimizations(), true);
 }

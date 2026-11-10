@@ -3,6 +3,7 @@ package com.kidscarsafety.vehicledetection
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import android.os.PowerManager
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -117,6 +118,18 @@ class VehicleDetectionModule : Module() {
 
     Function("consumeSuppressionUsed") {
       VehicleDetectionStore.consumeSuppressionUsed(context)
+    }
+
+    /**
+     * האם האפליקציה פטורה מחיסכון הסוללה ("ללא הגבלה").
+     *
+     * בדיקת שטח בסמסונג: גוגל זיהתה כניסה לרכב, אבל ההודעה הגיעה לאפליקציה
+     * רק 35 דקות אחר כך, כשההורה פתח אותה. חיסכון הסוללה חסם את ההודעות
+     * בזמן שהאפליקציה ברקע - ולכן גם את האזהרה.
+     */
+    Function("isIgnoringBatteryOptimizations") {
+      val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+      pm.isIgnoringBatteryOptimizations(context.packageName)
     }
 
     /** מאנדרואיד 14 מסך מלא מעל הנעילה דורש אישור ידני של ההורה. */

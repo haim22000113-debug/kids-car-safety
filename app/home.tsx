@@ -22,6 +22,7 @@ import {
 import { scheduleTripStartNotifications } from '../src/notifications/notificationService';
 import * as protectionService from '../src/services/protectionService';
 import * as tripStateService from '../src/services/tripStateService';
+import * as vehicleDetection from '../modules/vehicle-detection';
 
 /** שמות הילדים שההורה בחר לנסיעה. ריק אם סימן "הילדים לא איתי". */
 function tripChildNames(trip: Trip, user: User): string[] {
@@ -52,6 +53,8 @@ export default function Home() {
   const [starting, setStarting] = useState(false);
   const [protection, setProtection] = useState({ location: false, motion: false });
   const [protectionOff, setProtectionOff] = useState(false);
+  /** האם האפליקציה פטורה מחיסכון סוללה. ראה permissions.tsx. */
+  const [batteryOk, setBatteryOk] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
@@ -98,6 +101,7 @@ export default function Home() {
       if (isAutoProtectionEnabled(loadedUser.settings)) {
         setProtectionOff(false);
         setProtection(await protectionService.startProtection());
+        setBatteryOk(vehicleDetection.isIgnoringBatteryOptimizations());
       } else {
         setProtectionOff(true);
         setProtection({ location: false, motion: false });
@@ -257,6 +261,18 @@ export default function Home() {
               <Text style={styles.protectionLink}>
                 {protectionOff ? 'הפעל מחדש' : 'הגדר הרשאות'}
               </Text>
+            </Pressable>
+          ) : null}
+          {protection.location && !batteryOk ? (
+            // בדיקת שטח: חיסכון הסוללה עיכב הודעות מגוגל ב-35 דקות. ההגנה
+            // "פעילה", אבל האזהרה מגיעה רק כשפותחים את האפליקציה.
+            <Pressable
+              onPress={() => router.push('/permissions')}
+              accessibilityRole="button"
+              accessibilityLabel="חיסכון הסוללה עלול לעכב את האזהרות. לחץ לתיקון"
+            >
+              <Text style={styles.batteryWarning}>⚠️ חיסכון הסוללה עלול לעכב את האזהרות</Text>
+              <Text style={styles.protectionLink}>לחץ לתיקון</Text>
             </Pressable>
           ) : null}
         </View>
@@ -442,6 +458,13 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: theme.spacing.xs,
+  },
+  batteryWarning: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.danger,
+    fontWeight: theme.fontWeight.medium,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
   },
   protectionLink: {
     fontSize: theme.typography.caption,
