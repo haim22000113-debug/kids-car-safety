@@ -56,10 +56,9 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
       val delaySec = delayMs / 1000L
 
       // תחילת הליכה: רק ליומן. ראה VehicleTracking.buildRequest.
-      if (event.activityType == DetectedActivity.WALKING || event.activityType == DetectedActivity.ON_FOOT) {
+      if (event.activityType == DetectedActivity.WALKING) {
         if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
-          val kind = if (event.activityType == DetectedActivity.WALKING) "walking" else "on_foot"
-          VehicleDetectionStore.appendHistory(context, "WALK", "$kind delay=${delaySec}s")
+          VehicleDetectionStore.appendHistory(context, "WALK", "walking delay=${delaySec}s")
         }
         continue
       }

@@ -37,6 +37,10 @@ object VehicleTracking {
    * ההליכה נרשמת ביומן בלבד (WALK), ולא מפעילה שום אזהרה. בדיקת שטח: גוגל
    * החליטה על "יצא מהרכב" כמה דקות אחרי שההורה כבר הלך. הרישום הזה בודק
    * אם "התחיל ללכת" מגיע מוקדם יותר - ורק אם כן, יהיה שווה לפעול לפיו.
+   *
+   * **רק סוגים שגוגל תומכת בהם במעברים:** IN_VEHICLE, ON_BICYCLE, RUNNING,
+   * STILL, WALKING. בדיקת שטח: נוסף ON_FOOT, שלא נתמך - וגוגל דחתה את כל
+   * הבקשה, כולל הרכב. מאותו רגע לא זוהתה אף נסיעה. יש בדיקה שנכשלת על זה.
    */
   private fun buildRequest(): ActivityTransitionRequest {
     val transitions = listOf(
@@ -44,10 +48,7 @@ object VehicleTracking {
         .setActivityType(DetectedActivity.WALKING)
         .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
         .build(),
-      ActivityTransition.Builder()
-        .setActivityType(DetectedActivity.ON_FOOT)
-        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-        .build(),
+
       ActivityTransition.Builder()
         .setActivityType(DetectedActivity.IN_VEHICLE)
         .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
@@ -83,6 +84,12 @@ object VehicleTracking {
       VehicleDetectionStore.setTracking(context, false)
       VehicleDetectionStore.appendHistory(context, "REGISTER_NO_PERMISSION")
       onResult(false, null)
+    } catch (e: Exception) {
+      // בקשה לא תקינה נזרקת כאן ולא בכישלון של הרישום. בלי התפיסה הזו
+      // הכשל היה שקט לגמרי: בלי REGISTER_FAIL ביומן ובלי זיהוי.
+      VehicleDetectionStore.setTracking(context, false)
+      VehicleDetectionStore.appendHistory(context, "REGISTER_FAIL", e.javaClass.simpleName)
+      onResult(false, e)
     }
   }
 
