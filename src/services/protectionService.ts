@@ -59,7 +59,8 @@ export async function syncNativeConfig(): Promise<void> {
     user.emergencyContact?.phone ?? '',
     CALL_DEADLINE_MS,
     config.CALL_COUNTDOWN_SECONDS * 1000,
-    URGENT_ALARM_DELAY_MS
+    URGENT_ALARM_DELAY_MS,
+    config.ACK_COVERS_TRIP_MINUTES * 60_000
   );
 
   // אם הצד הנייטיב כבר ניצל את הדילוג החד-פעמי ("רק לנסיעה הזו"),

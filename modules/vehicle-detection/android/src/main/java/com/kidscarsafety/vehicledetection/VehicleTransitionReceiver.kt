@@ -92,6 +92,7 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           VehicleDetectionStore.recordEvent(
             context, VehicleDetectionStore.EVENT_ENTER, System.currentTimeMillis()
           )
+          VehicleDetectionStore.setLastVehicleEnterAt(context, happenedAt)
           VehicleDetectionStore.appendHistory(context, "ENTER", "delay=${delaySec}s")
         }
 
@@ -102,6 +103,14 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           // מתקשרת לאיש הקשר בדיוק כשההורה אמר שאין סיבה.
           if (VehicleDetectionStore.consumeSuppression(context)) {
             VehicleDetectionStore.appendHistory(context, "SUPPRESSED", "children not with me")
+            continue
+          }
+
+          // ההורה כבר לחץ "ראיתי" על הנסיעה הזו (בדרך כלל על אזהרה מהמזהה
+          // לפי מיקום), ואין מאז כניסה חדשה לרכב. בדיקת שטח: יציאה כזו
+          // שהגיעה באיחור פתחה שרשרת חדשה - עם אזעקה ושיחה - אחרי האישור.
+          if (VehicleDetectionStore.isTripAcknowledged(context, nowMs)) {
+            VehicleDetectionStore.appendHistory(context, "ACKED_SKIP")
             continue
           }
 

@@ -91,6 +91,11 @@ object VehicleDetectionStore {
   private const val KEY_CALL_DEADLINE_MS = "call_deadline_ms"
   private const val KEY_COUNTDOWN_MS = "countdown_ms"
   private const val KEY_URGENT_DELAY_MS = "urgent_delay_ms"
+  private const val KEY_ACK_WINDOW_MS = "ack_window_ms"
+  /** מתי ההורה אישר "ראיתי" לאחרונה. לא נמחק - ראה isTripAcknowledged. */
+  private const val KEY_LAST_ACK_AT = "last_ack_at"
+  /** מתי קרתה הכניסה האחרונה לרכב שהתקבלה. לא נמחק עם clearEvent. */
+  private const val KEY_LAST_VEHICLE_ENTER_AT = "last_vehicle_enter_at"
   private const val KEY_ESC_STATE = "escalation_state"
   private const val KEY_ESC_FOR = "escalation_for"
   private const val KEY_ESC_CALL_AT = "escalation_call_at"
@@ -106,7 +111,8 @@ object VehicleDetectionStore {
   const val ESC_CALLED = "CALLED"
 
   fun setEscalationConfig(
-    context: Context, name: String, phone: String, deadlineMs: Long, countdownMs: Long, urgentDelayMs: Long
+    context: Context, name: String, phone: String, deadlineMs: Long, countdownMs: Long, urgentDelayMs: Long,
+    ackWindowMs: Long
   ) {
     prefs(context).edit()
       .putString(KEY_CONTACT_NAME, name)
@@ -114,6 +120,7 @@ object VehicleDetectionStore {
       .putLong(KEY_CALL_DEADLINE_MS, deadlineMs)
       .putLong(KEY_COUNTDOWN_MS, countdownMs)
       .putLong(KEY_URGENT_DELAY_MS, urgentDelayMs)
+      .putLong(KEY_ACK_WINDOW_MS, ackWindowMs)
       .apply()
   }
 
@@ -123,6 +130,29 @@ object VehicleDetectionStore {
   fun getCountdownMs(context: Context): Long = prefs(context).getLong(KEY_COUNTDOWN_MS, 10_000L)
   /** כמה זמן מהיציאה מהרכב עד האזעקה. ברירת המחדל זהה ל-config.ts. */
   fun getUrgentDelayMs(context: Context): Long = prefs(context).getLong(KEY_URGENT_DELAY_MS, 60_000L)
+
+  fun setLastAckAt(context: Context, at: Long) {
+    prefs(context).edit().putLong(KEY_LAST_ACK_AT, at).commit()
+  }
+
+  fun setLastVehicleEnterAt(context: Context, at: Long) {
+    prefs(context).edit().putLong(KEY_LAST_VEHICLE_ENTER_AT, at).commit()
+  }
+
+  /**
+   * האם הנסיעה הנוכחית כבר אושרה ("ראיתי").
+   *
+   * כן, אם ההורה אישר אחרי הכניסה האחרונה לרכב, ולפני פחות מחלון האישור
+   * (ACK_COVERS_TRIP_MINUTES ב-config.ts). אז יציאה נוספת שמגיעה - בדרך
+   * כלל מהמזהה השני, באיחור - שייכת לאותה נסיעה ולא מתריעה שוב.
+   */
+  fun isTripAcknowledged(context: Context, now: Long): Boolean {
+    val p = prefs(context)
+    val ackAt = p.getLong(KEY_LAST_ACK_AT, 0L)
+    if (ackAt == 0L || ackAt > now) return false
+    val window = p.getLong(KEY_ACK_WINDOW_MS, 30 * 60_000L)
+    return ackAt > p.getLong(KEY_LAST_VEHICLE_ENTER_AT, 0L) && now - ackAt < window
+  }
 
   // commit ולא apply: השלב נקרא מיד ברכיב אחר, ואסור שהכתיבה תהיה עדיין בדרך.
   fun setEscalationState(context: Context, state: String) {

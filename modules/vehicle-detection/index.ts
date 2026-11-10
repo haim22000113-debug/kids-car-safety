@@ -27,7 +27,8 @@ interface VehicleDetectionNativeModule extends NativeModule {
     phone: string,
     deadlineMs: number,
     countdownMs: number,
-    urgentDelayMs: number
+    urgentDelayMs: number,
+    ackWindowMs: number
   ): void;
   scheduleEscalation(callAtMs: number): void;
   cancelEscalation(): void;
@@ -185,9 +186,13 @@ export function configureEscalation(
   phone: string,
   deadlineMs: number,
   countdownMs: number,
-  urgentDelayMs: number
+  urgentDelayMs: number,
+  ackWindowMs: number
 ): void {
-  safe(() => native!.configureEscalation(name, phone, deadlineMs, countdownMs, urgentDelayMs), undefined);
+  safe(
+    () => native!.configureEscalation(name, phone, deadlineMs, countdownMs, urgentDelayMs, ackWindowMs),
+    undefined
+  );
 }
 
 /**

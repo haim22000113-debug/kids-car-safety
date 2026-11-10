@@ -92,9 +92,9 @@ class VehicleDetectionModule : Module() {
     // ---------- הסלמה לאיש קשר ----------
 
     /** ה-JS מסנכרן לכאן את איש הקשר והזמנים, כדי שהצד הנייטיב יפעל לבד. */
-    Function("configureEscalation") { name: String, phone: String, deadlineMs: Double, countdownMs: Double, urgentDelayMs: Double ->
+    Function("configureEscalation") { name: String, phone: String, deadlineMs: Double, countdownMs: Double, urgentDelayMs: Double, ackWindowMs: Double ->
       VehicleDetectionStore.setEscalationConfig(
-        context, name, phone, deadlineMs.toLong(), countdownMs.toLong(), urgentDelayMs.toLong()
+        context, name, phone, deadlineMs.toLong(), countdownMs.toLong(), urgentDelayMs.toLong(), ackWindowMs.toLong()
       )
     }
 

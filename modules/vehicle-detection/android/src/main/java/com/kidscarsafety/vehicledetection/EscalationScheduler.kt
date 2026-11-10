@@ -108,6 +108,11 @@ object EscalationScheduler {
       VehicleDetectionStore.appendHistory(context, "ESC_SKIP_STALE")
       return
     }
+    // ההורה כבר אמר "ראיתי" על הנסיעה הזו - המזהה השני לא מתחיל שרשרת חדשה.
+    if (VehicleDetectionStore.isTripAcknowledged(context, now)) {
+      VehicleDetectionStore.appendHistory(context, "ESC_SKIP_ACKED")
+      return
+    }
 
     val state = VehicleDetectionStore.getEscalationState(context)
     val prevFor = VehicleDetectionStore.getEscalationFor(context)
@@ -185,6 +190,8 @@ object EscalationScheduler {
     if (state != VehicleDetectionStore.ESC_CALLED) {
       VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_CANCELLED)
     }
+    // גם כשהאישור הגיע מתוך האפליקציה (fromUser=false): ההורה טיפל.
+    VehicleDetectionStore.setLastAckAt(context, System.currentTimeMillis())
     if (fromUser) {
       VehicleDetectionStore.markConfirmed(context)
       VehicleDetectionStore.appendHistory(context, "ACKNOWLEDGED", via)

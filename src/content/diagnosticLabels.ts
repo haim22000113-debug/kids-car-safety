@@ -60,6 +60,8 @@ export const NATIVE_LABELS: Record<string, string> = {
   SUPPRESSED: 'דולג',
   ESC_SCHEDULED: 'תוזמנו אזעקה ושיחה',
   ESC_SKIP_STALE: 'הסלמה ישנה, לא תוזמנה',
+  ESC_SKIP_ACKED: 'לא תוזמנה הסלמה: הנסיעה כבר אושרה',
+  ACKED_SKIP: 'גוגל: יציאה מרכב שכבר אושרה, בלי התראה',
   ESC_ALARM: 'אזעקה',
   ESC_COUNTDOWN: 'ספירה לאחור לשיחה',
   ESC_NO_CONTACT: 'אין איש קשר, רק אזעקה',
