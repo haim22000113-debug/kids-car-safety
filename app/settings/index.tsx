@@ -9,6 +9,7 @@ import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { theme } from '../../src/theme';
+import { AUTO_CALL_SUPPORTED } from '../../src/content/autoCall';
 import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { UserStorage, TripStorage } from '../../src/storage';
 import { User, isAutoProtectionEnabled } from '../../src/models';
@@ -259,7 +260,9 @@ export default function Settings() {
           <Text style={styles.infoText}>
             {user.emergencyContact
               ? `${user.emergencyContact.name} · ${user.emergencyContact.phone}`
-              : 'לא הוגדר איש קשר. בלי איש קשר לא תהיה שיחה אוטומטית.'}
+              : AUTO_CALL_SUPPORTED
+                ? 'לא הוגדר איש קשר. בלי איש קשר לא תהיה שיחה אוטומטית.'
+                : 'לא הוגדר איש קשר.'}
           </Text>
           <Button
             title={user.emergencyContact ? 'ערוך איש קשר' : 'הוסף איש קשר'}

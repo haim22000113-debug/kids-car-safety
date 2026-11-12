@@ -5,6 +5,7 @@ import { FormScreen } from '../../src/components/FormScreen';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
+import { AUTO_CALL_SUPPORTED } from '../../src/content/autoCall';
 import { UserStorage } from '../../src/storage';
 import { trackEvent } from '../../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../../src/analytics/events';
@@ -75,7 +76,9 @@ export default function EmergencyContact() {
     >
       <Text style={styles.title}>איש קשר לחירום</Text>
       <Text style={styles.subtitle}>
-        אם לא תאשר שראית את ההתראות תוך שתי דקות, נתקשר לאדם הזה.
+        {AUTO_CALL_SUPPORTED
+          ? 'אם לא תאשר שראית את ההתראות תוך שתי דקות, נתקשר לאדם הזה.'
+          : 'בזמן אזהרה, לחיצה אחת תתקשר לאדם הזה. באייפון האפליקציה לא יכולה להתקשר בעצמה.'}
       </Text>
 
       <TextField

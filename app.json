@@ -44,7 +44,18 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.kidscarsafety.app"
+      "bundleIdentifier": "com.kidscarsafety.app",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
+      "infoPlist": {
+        "NSLocationAlwaysUsageDescription": "כדי שההגנה תעבוד גם כשהאפליקציה אינה פתוחה, אנחנו משתמשים במיקום ברקע. המיקום נשמר במכשיר שלך בלבד.",
+        "NSMotionUsageDescription": "זיהוי תנועה עוזר להבחין בין נסיעה להליכה. המידע נשאר במכשיר שלך בלבד."
+      }
     },
     "android": {
       "package": "com.kidscarsafety.app",

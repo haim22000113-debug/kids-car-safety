@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
 import { theme } from '../src/theme';
+import { AUTO_CALL_SUPPORTED } from '../src/content/autoCall';
 import { UserStorage } from '../src/storage';
 import { EmergencyContact } from '../src/models';
 import { TripState } from '../src/models/TripState';
@@ -85,7 +86,9 @@ export default function Warning() {
         <Text style={styles.question}>בדקת שכל הילדים יצאו מהרכב?</Text>
         {contact ? (
           <Text style={styles.callNote}>
-            אם לא תאשר תוך שתי דקות מהזיהוי, נתקשר ל{contact.name}.
+            {AUTO_CALL_SUPPORTED
+              ? `אם לא תאשר תוך שתי דקות מהזיהוי, נתקשר ל${contact.name}.`
+              : `צריך עזרה? "אני צריך עזרה" מתקשר ל${contact.name} בלחיצה אחת.`}
           </Text>
         ) : null}
       </View>

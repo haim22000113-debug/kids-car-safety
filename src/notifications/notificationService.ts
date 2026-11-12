@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { Trip, ReminderSettings } from '../models';
 import { config } from '../config';
 import { getReminderDefs, getTripStartNotificationDefs } from './reminderLogic';
+import { AUTO_CALL_SUPPORTED } from '../content/autoCall';
 
 export { isReminderDeadlinePassed, getTripActiveReminderMinutes } from './reminderLogic';
 
@@ -94,9 +95,31 @@ export const STATUS_CHANNEL = 'trip-status-v2';
  * שבו רוב האזהרות מגיעות.
  */
 export const WARNING_CATEGORY = 'vehicle-warning';
+
+/**
+ * שדות שרק אייפון קורא. באנדרואיד הערוץ קובע צליל ועוצמה, ובאייפון אין
+ * ערוצים - ולכן זה נקבע על כל התראה בנפרד:
+ *
+ * - interruptionLevel 'timeSensitive': האזהרה עוקפת את מצבי "ריכוז"
+ *   (נהיגה, שינה). בלי זה, הורה שהטלפון שלו במצב "נהיגה" לא יראה כלום.
+ *   דורש את ההרשאה com.apple.developer.usernotifications.time-sensitive
+ *   ב-app.json.
+ * - באזעקה: הצליל שלנו באורך 12 שניות במקום צליל מערכת קצר.
+ *
+ * לא עוקף מצב שקט - את זה רק Critical Alerts, שדורש אישור מיוחד מאפל.
+ */
+function iosAlertFields(urgent: boolean, soundOn = true): Partial<Notifications.NotificationContentInput> {
+  if (Platform.OS !== 'ios') return {};
+  return {
+    interruptionLevel: 'timeSensitive',
+    ...(urgent && soundOn ? { sound: 'warning_alarm.wav' } : {}),
+  };
+}
 export const ACTION_CONFIRM_SAFE = 'CONFIRM_SAFE';
 
-if (Platform.OS === 'android') {
+// בשתי הפלטפורמות: באייפון הכפתור "ראיתי" חשוב אפילו יותר, כי אין שם
+// שיחה אוטומטית - ההתראות הן כל מה שיש.
+{
   Notifications.setNotificationCategoryAsync(WARNING_CATEGORY, [
     {
       identifier: ACTION_CONFIRM_SAFE,
@@ -249,6 +272,7 @@ export async function scheduleSafetyCheckReminders(
             ? {
                 categoryIdentifier: WARNING_CATEGORY,
                 priority: Notifications.AndroidNotificationPriority.MAX,
+                ...iosAlertFields(true, settings.soundEnabled),
               }
             : {}),
           data: { tripId: trip.id, target: 'safety-check' },
@@ -376,12 +400,17 @@ export async function scheduleWarningLadder(
       channelId: WARNING_CHANNEL_GENTLE,
       title: 'רגע לפני שאתה ממשיך',
       body: 'בדקת שכל הילדים יצאו מהרכב?',
+      urgent: false,
     },
     {
       at: startedAt + (config.FIRST_WARNING_DELAY_SECONDS + config.SECOND_WARNING_DELAY_SECONDS) * 1000,
       channelId: WARNING_CHANNEL_URGENT,
       title: 'חשוב לבדוק את הרכב עכשיו',
-      body: 'לא התקבל אישור. אם לא תאשר, נתקשר לאיש הקשר שלך.',
+      // באייפון אין שיחה אוטומטית - לא מבטיחים אותה. ראה autoCall.ts.
+      body: AUTO_CALL_SUPPORTED
+        ? 'לא התקבל אישור. אם לא תאשר, נתקשר לאיש הקשר שלך.'
+        : 'לא התקבל אישור. בדקת שכל הילדים יצאו מהרכב?',
+      urgent: true,
     },
   ];
 
@@ -401,6 +430,7 @@ export async function scheduleWarningLadder(
           // priority לבדו לא עושה כלום מאנדרואיד 8 ומעלה - הערוץ הוא
           // שקובע. הוא נשאר כאן בשביל מכשירים ישנים יותר.
           priority: Notifications.AndroidNotificationPriority.MAX,
+          ...iosAlertFields(step.urgent),
           data: { target: 'warning' },
         },
         trigger:
