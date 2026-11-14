@@ -37,6 +37,8 @@ interface VehicleDetectionNativeModule extends NativeModule {
   consumeSuppressionUsed(): boolean;
   canUseFullScreenIntent(): boolean;
   isIgnoringBatteryOptimizations(): boolean;
+  canScheduleExactAlarms(): boolean;
+  getLastAckAt(): number;
 }
 
 /** רשומה ביומן האבחון הנייטיב. אין בה מיקום - רק סוג, שעה ופרטים טכניים. */
@@ -238,4 +240,20 @@ export function canUseFullScreenIntent(): boolean {
  */
 export function isIgnoringBatteryOptimizations(): boolean {
   return safe(() => native!.isIgnoringBatteryOptimizations(), true);
+}
+
+/**
+ * האם מותר לתזמן מעורר מדויק ("התראות ותזכורות"). true כשהמודול לא קיים.
+ * בלי זה האזעקה והשיחה לאיש הקשר עלולות להגיע באיחור.
+ */
+export function canScheduleExactAlarms(): boolean {
+  return safe(() => native!.canScheduleExactAlarms(), true);
+}
+
+/**
+ * מתי ההורה לחץ "ראיתי" לאחרונה, כולל בהתראה נייטיב כשה-JS לא רץ. 0 אם אף
+ * פעם, או כשהמודול לא קיים.
+ */
+export function getLastAckAt(): number {
+  return safe(() => native!.getLastAckAt(), 0);
 }

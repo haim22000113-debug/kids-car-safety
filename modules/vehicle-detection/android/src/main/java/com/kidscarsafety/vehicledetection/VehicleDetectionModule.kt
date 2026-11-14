@@ -1,5 +1,6 @@
 package com.kidscarsafety.vehicledetection
 
+import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
@@ -130,6 +131,26 @@ class VehicleDetectionModule : Module() {
     Function("isIgnoringBatteryOptimizations") {
       val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
       pm.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    /**
+     * האם מותר לתזמן מעורר מדויק ("התראות ותזכורות" בהגדרות).
+     *
+     * מאנדרואיד 14 ההרשאה כבויה כברירת מחדל באפליקציות חדשות. בלעדיה האזעקה
+     * והשיחה מתוזמנות "בערך", ואנדרואיד רשאי לאחר אותן בעשרות שניות ויותר.
+     */
+    Function("canScheduleExactAlarms") {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.canScheduleExactAlarms()
+      } else {
+        true
+      }
+    }
+
+    /** מתי ההורה לחץ "ראיתי" לאחרונה (גם בהתראה נייטיב), או 0. */
+    Function("getLastAckAt") {
+      VehicleDetectionStore.getLastAckAt(context).toDouble()
     }
 
     /** מאנדרואיד 14 מסך מלא מעל הנעילה דורש אישור ידני של ההורה. */

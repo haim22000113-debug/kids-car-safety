@@ -101,7 +101,11 @@ export default function Home() {
       if (isAutoProtectionEnabled(loadedUser.settings)) {
         setProtectionOff(false);
         setProtection(await protectionService.startProtection());
-        setBatteryOk(vehicleDetection.isIgnoringBatteryOptimizations());
+        // שתי הגדרות מערכת שבלעדיהן האזהרות מגיעות באיחור: חיסכון סוללה,
+        // ו"התראות ותזכורות" (תזמון מדויק של האזעקה והשיחה).
+        setBatteryOk(
+          vehicleDetection.isIgnoringBatteryOptimizations() && vehicleDetection.canScheduleExactAlarms()
+        );
       } else {
         setProtectionOff(true);
         setProtection({ location: false, motion: false });
@@ -269,9 +273,9 @@ export default function Home() {
             <Pressable
               onPress={() => router.push('/permissions')}
               accessibilityRole="button"
-              accessibilityLabel="חיסכון הסוללה עלול לעכב את האזהרות. לחץ לתיקון"
+              accessibilityLabel="הגדרות הטלפון עלולות לעכב את האזהרות. לחץ לתיקון"
             >
-              <Text style={styles.batteryWarning}>⚠️ חיסכון הסוללה עלול לעכב את האזהרות</Text>
+              <Text style={styles.batteryWarning}>⚠️ הגדרות הטלפון עלולות לעכב את האזהרות</Text>
               <Text style={styles.protectionLink}>לחץ לתיקון</Text>
             </Pressable>
           ) : null}

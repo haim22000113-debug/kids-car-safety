@@ -78,12 +78,17 @@ object EscalationScheduler {
     )
   }
 
+  private fun canExact(context: Context): Boolean {
+    val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+  }
+
   private fun setAlarm(context: Context, atMillis: Long, operation: PendingIntent) {
     val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     // תזמון מדויק כשמותר, אחרת "בערך". ב"בערך" אנדרואיד יכול לאחר בדקות
-    // כשהטלפון בשינה עמוקה - ולכן SCHEDULE_EXACT_ALARM מוצהר במניפסט.
-    val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
-    if (canExact) {
+    // כשהטלפון בשינה עמוקה - ולכן SCHEDULE_EXACT_ALARM מוצהר במניפסט,
+    // ומסך ההרשאות שולח את ההורה לאשר אותו (מאנדרואיד 14 הוא כבוי מראש).
+    if (canExact(context)) {
       am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, operation)
     } else {
       am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, operation)
@@ -141,7 +146,9 @@ object EscalationScheduler {
       setAlarm(context, maxOf(now + 1_000L, urgentAt), broadcast(context, ACTION_URGENT, RC_URGENT))
     }
     VehicleDetectionStore.appendHistory(
-      context, "ESC_SCHEDULED", "alarm_in=${(urgentAt - now) / 1000}s call_in=${(callAt - now) / 1000}s"
+      context, "ESC_SCHEDULED", "alarm_in=${(urgentAt - now) / 1000}s call_in=${(callAt - now) / 1000}s" +
+        // בלי אישור "התראות ותזכורות" הזמנים האלה הם "בערך". חייב להופיע ביומן.
+        (if (canExact(context)) "" else " inexact")
     )
   }
 
@@ -205,7 +212,9 @@ object EscalationScheduler {
     val phone = VehicleDetectionStore.getContactPhone(context)
     if (phone.isBlank()) {
       // אין איש קשר מוגדר - אין למי להתקשר. מתריעים בלבד.
-      VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_IDLE)
+      // מצב סופי ולא IDLE: עם IDLE, תזמון מאוחר מה-JS לאותו אירוע היה
+      // מתחיל את כל השרשרת מחדש, עם אזעקה שנייה.
+      VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_ALERTED)
       postUrgentNoContact(context)
       VehicleDetectionStore.appendHistory(context, "ESC_NO_CONTACT")
       return

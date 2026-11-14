@@ -34,6 +34,7 @@ export default function Permissions() {
   const [call, setCall] = useState(false);
   const [fullScreen, setFullScreen] = useState(true);
   const [battery, setBattery] = useState(true);
+  const [exactAlarm, setExactAlarm] = useState(true);
   /** איזו בקשה רצה כרגע, או null. לא בוליאני אחד משותף - ראה הערה למטה. */
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export default function Permissions() {
       }
       setFullScreen(vehicleDetection.canUseFullScreenIntent());
       setBattery(vehicleDetection.isIgnoringBatteryOptimizations());
+      setExactAlarm(vehicleDetection.canScheduleExactAlarms());
     }
   }, []);
 
@@ -127,6 +129,23 @@ export default function Permissions() {
     }
     await refresh();
   };
+  /**
+   * "התראות ותזכורות": בלי האישור הזה האזעקה והשיחה לאיש הקשר מתוזמנות
+   * "בערך", ואנדרואיד רשאי לאחר אותן. מאנדרואיד 14 הוא כבוי מראש באפליקציות
+   * חדשות, ואפשר רק לשלוח להגדרות - אין חלון אישור.
+   */
+  const openExactAlarmSettings = async () => {
+    const pkg = Constants.expoConfig?.android?.package ?? 'com.kidscarsafety.app';
+    try {
+      await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', {
+        data: 'package:' + pkg,
+      });
+    } catch {
+      await Linking.openSettings();
+    }
+    await refresh();
+  };
+
   const isSamsung = (Device.manufacturer ?? '').toLowerCase().includes('samsung');
 
   const done = () => router.replace(fromOnboarding ? '/home' : '/settings');
@@ -141,7 +160,7 @@ export default function Permissions() {
    */
   const motionOk = !vehicleDetection.isSupported() || motion;
   const callOk = Platform.OS !== 'android' || call;
-  const allGood = foreground && background && notifications && motionOk && callOk && fullScreen && battery;
+  const allGood = foreground && background && notifications && motionOk && callOk && fullScreen && battery && exactAlarm;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -246,6 +265,15 @@ export default function Permissions() {
                 ) : null}
               </>
             }
+          />
+        ) : null}
+
+        {!exactAlarm ? (
+          <Item
+            title="אזעקה בזמן מדויק"
+            granted={false}
+            description={'בלי האישור הזה הטלפון רשאי לאחר את האזעקה ואת השיחה לאיש הקשר. בהגדרות שייפתחו, הדלק את "התראות ותזכורות".'}
+            action={<Button title="פתח הגדרות" variant="ghost" onPress={openExactAlarmSettings} />}
           />
         ) : null}
 

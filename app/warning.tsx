@@ -31,6 +31,9 @@ export default function Warning() {
 
   useEffect(() => {
     if (state === TripState.ESCALATION) setShowHelp(true);
+    // האישור הגיע ממקום אחר (כפתור בהתראה, או הצד הנייטיב). בלי זה ההורה
+    // נשאר מול "בדקת שכל הילדים יצאו?" אחרי שכבר אמר "ראיתי".
+    if (state === TripState.CONFIRMED_SAFE) router.replace('/safe');
   }, [state]);
 
   const onConfirm = async () => {

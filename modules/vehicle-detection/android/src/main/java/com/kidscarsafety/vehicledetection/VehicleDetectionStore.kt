@@ -109,6 +109,8 @@ object VehicleDetectionStore {
   const val ESC_COUNTDOWN = "COUNTDOWN"
   const val ESC_CANCELLED = "CANCELLED"
   const val ESC_CALLED = "CALLED"
+  /** הסתיים בלי שיחה כי אין איש קשר - הוצגה רק אזעקה. */
+  const val ESC_ALERTED = "ALERTED"
 
   fun setEscalationConfig(
     context: Context, name: String, phone: String, deadlineMs: Long, countdownMs: Long, urgentDelayMs: Long,
@@ -134,6 +136,8 @@ object VehicleDetectionStore {
   fun setLastAckAt(context: Context, at: Long) {
     prefs(context).edit().putLong(KEY_LAST_ACK_AT, at).commit()
   }
+
+  fun getLastAckAt(context: Context): Long = prefs(context).getLong(KEY_LAST_ACK_AT, 0L)
 
   fun setLastVehicleEnterAt(context: Context, at: Long) {
     prefs(context).edit().putLong(KEY_LAST_VEHICLE_ENTER_AT, at).commit()

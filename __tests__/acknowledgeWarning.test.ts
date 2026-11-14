@@ -8,18 +8,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TripState, INITIAL_SNAPSHOT } from '../src/models/TripState';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(...a), replace: jest.fn() } }));
 
 const mockCancelEscalation = jest.fn();
+const mockScheduleEscalation = jest.fn();
+let mockLastAckAt = 0;
+let mockPending: { type: string; at: number; enteredAt: number } | null = null;
 jest.mock('../modules/vehicle-detection', () => ({
+  getLastAckAt: () => mockLastAckAt,
   cancelEscalation: () => mockCancelEscalation(),
   configureEscalation: jest.fn(),
-  scheduleEscalation: jest.fn(),
+  scheduleEscalation: (at: number) => mockScheduleEscalation(at),
   setSuppression: jest.fn(),
   consumeSuppressionUsed: () => false,
   consumeConfirmation: () => 0,
-  getPendingEvent: () => null,
-  clearPendingEvent: jest.fn(),
+  getPendingEvent: () => mockPending,
+  clearPendingEvent: () => {
+    mockPending = null;
+  },
   handlesUrgentAlarm: () => true,
   startTracking: async () => false,
   stopTracking: async () => true,
@@ -27,14 +34,16 @@ jest.mock('../modules/vehicle-detection', () => ({
 }));
 
 const mockCancelWarningLadder = jest.fn(async (_ids: string[] | undefined) => {});
+const mockScheduleWarningLadder = jest.fn(async (..._args: unknown[]) => [] as string[]);
 jest.mock('../src/notifications/notificationService', () => ({
-  scheduleWarningLadder: jest.fn(async () => []),
+  scheduleWarningLadder: (...args: unknown[]) => mockScheduleWarningLadder(...args),
   cancelWarningLadder: (ids: string[] | undefined) => mockCancelWarningLadder(ids),
   cancelReminders: jest.fn(async () => {}),
 }));
 
 jest.mock('../src/services/locationService', () => ({
   onSample: () => () => {},
+  getLastSample: () => undefined,
   startTracking: async () => false,
   stopTracking: async () => {},
 }));
@@ -49,6 +58,11 @@ describe('"ראיתי, אני מטפל" מהתראה כשהאפליקציה עו
     jest.resetModules();
     mockCancelEscalation.mockClear();
     mockCancelWarningLadder.mockClear();
+    mockScheduleWarningLadder.mockClear();
+    mockScheduleEscalation.mockClear();
+    mockPush.mockClear();
+    mockLastAckAt = 0;
+    mockPending = null;
     await AsyncStorage.clear();
   });
 
@@ -110,5 +124,79 @@ describe('"ראיתי, אני מטפל" מהתראה כשהאפליקציה עו
     await Promise.all([protectionService.acknowledgeWarning(), protectionService.restoreAfterRestart()]);
 
     expect(tripStateService.getSnapshot().state).toBe(TripState.CONFIRMED_SAFE);
+  });
+
+  it('לחיצה על ההתראה הנייטיב: האפליקציה עולה ולא פותחת שוב את מסך האזהרה', async () => {
+    const now = Date.now();
+    // הצד הנייטיב רשם יציאה, ואחריה ההורה לחץ על ההתראה ("ראיתי").
+    mockPending = { type: 'EXIT_VEHICLE', at: now - 20_000, enteredAt: now - 600_000 };
+    mockLastAckAt = now - 5_000;
+
+    const protectionService = require('../src/services/protectionService');
+    const tripStateService = require('../src/services/tripStateService');
+    await protectionService.restoreAfterRestart();
+
+    expect(mockPush).not.toHaveBeenCalledWith('/warning');
+    expect(mockScheduleWarningLadder).not.toHaveBeenCalled();
+    expect(tripStateService.getSnapshot().state).not.toBe(TripState.WARNING);
+    expect(mockPending).toBeNull();
+  });
+
+  it('יציאה שלא אושרה עדיין - מתריעים כרגיל', async () => {
+    const now = Date.now();
+    mockPending = { type: 'EXIT_VEHICLE', at: now - 2_000, enteredAt: now - 600_000 };
+    // "ראיתי" מנסיעה קודמת, לפני היציאה הזו.
+    mockLastAckAt = now - 3_600_000;
+
+    const protectionService = require('../src/services/protectionService');
+    const tripStateService = require('../src/services/tripStateService');
+    await protectionService.restoreAfterRestart();
+
+    expect(tripStateService.getSnapshot().state).toBe(TripState.WARNING);
+    expect(mockScheduleWarningLadder).toHaveBeenCalled();
+    expect(mockScheduleEscalation).toHaveBeenCalled();
+  });
+
+  it('המזהה לפי מיקום לא מתריע על נסיעה שההורה כבר אמר עליה "ראיתי"', async () => {
+    const { TripStateStorage } = require('../src/storage');
+    const now = Date.now();
+    // ה-JS עדיין בזמן חסד על הנסיעה, וההורה כבר לחץ "ראיתי" בהתראה הנייטיב.
+    await TripStateStorage.save({
+      ...INITIAL_SNAPSHOT,
+      state: TripState.ACTIVE,
+      stateSince: now - 900_000,
+      tripStartedAt: now - 900_000,
+    });
+    mockLastAckAt = now - 60_000;
+
+    const protectionService = require('../src/services/protectionService');
+    const tripStateService = require('../src/services/tripStateService');
+    await protectionService.ensureEngineReady();
+    await tripStateService.onVehicleExit(undefined, now);
+
+    expect(mockScheduleWarningLadder).not.toHaveBeenCalled();
+    expect(mockScheduleEscalation).not.toHaveBeenCalled();
+    expect(tripStateService.getSnapshot().state).toBe(TripState.CONFIRMED_SAFE);
+  });
+
+  it('נסיעה חדשה אחרי "ראיתי" - מתריעים', async () => {
+    const { TripStateStorage } = require('../src/storage');
+    const now = Date.now();
+    await TripStateStorage.save({
+      ...INITIAL_SNAPSHOT,
+      state: TripState.ACTIVE,
+      stateSince: now - 300_000,
+      tripStartedAt: now - 300_000,
+    });
+    // האישור היה על הנסיעה הקודמת, לפני שהנסיעה הזו התחילה.
+    mockLastAckAt = now - 600_000;
+
+    const protectionService = require('../src/services/protectionService');
+    const tripStateService = require('../src/services/tripStateService');
+    await protectionService.ensureEngineReady();
+    await tripStateService.onVehicleExit(undefined, now);
+
+    expect(tripStateService.getSnapshot().state).toBe(TripState.WARNING);
+    expect(mockScheduleWarningLadder).toHaveBeenCalled();
   });
 });

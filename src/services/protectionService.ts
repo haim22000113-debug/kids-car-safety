@@ -79,6 +79,16 @@ export async function syncNativeConfig(): Promise<void> {
   );
 }
 
+/**
+ * האם ההורה לחץ "ראיתי" (בכל מקום, גם בהתראה נייטיב) מאז הרגע הנתון.
+ * בלי רגע ידוע - לא, ומתריעים. בספק עדיף אזהרה מיותרת משתיקה.
+ */
+export function acknowledgedSince(at: number | undefined): boolean {
+  if (!at) return false;
+  const ackAt = vehicleDetection.getLastAckAt();
+  return ackAt > 0 && ackAt >= at && ackAt <= Date.now();
+}
+
 /** האם ההורה הגדיר עכשיו "הילדים לא איתי". */
 async function isSuppressed(): Promise<boolean> {
   const user = await UserStorage.getUser();
@@ -109,6 +119,21 @@ const handlers: tripStateService.Handlers = {
     // ההורה אמר שהילדים לא איתו - אין על מה להתריע ובטח שלא להתקשר.
     if (await isSuppressed()) {
       logEvent(TripEventName.WARNING_SENT, 'דולג: הילדים לא איתי');
+      return;
+    }
+
+    /**
+     * ההורה כבר לחץ "ראיתי" על הנסיעה הזו, בהתראה של הצד הנייטיב.
+     *
+     * בדיקת שטח: "ההתראות מגיעות גם אחרי שאני לוחץ ראיתי". הלחיצה נרשמה
+     * בנייטיב, אבל המזהה לפי מיקום ב-JS לא ידע עליה: כמה דקות אחר כך הוא
+     * זיהה את אותה עצירה ושלח התראה משלו. הצד הנייטיב כבר דילג על האזעקה
+     * והשיחה (ESC_SKIP_ACKED); כאן סוגרים גם את ההתראה של ה-JS.
+     * רק אם האישור היה אחרי תחילת הנסיעה הזו: נסיעה חדשה תמיד מתריעה.
+     */
+    if (acknowledgedSince(tripStateService.getSnapshot().tripStartedAt)) {
+      logEvent(TripEventName.WARNING_SENT, 'דולג: כבר אושר "ראיתי" על הנסיעה הזו');
+      await tripStateService.confirmSafe();
       return;
     }
 
@@ -255,7 +280,20 @@ export function isStarted(): boolean {
  * מה שקרה בזמן שלא היינו ומגיבים אליו.
  */
 export async function consumePendingVehicleEvent(): Promise<void> {
-  await handlePendingVehicleEvent();
+  /**
+   * יציאה שההורה כבר אישר עליה "ראיתי" בהתראה הנייטיב - לא פותחים אותה.
+   *
+   * בדיקה של הקוד: לחיצה על ההתראה מאשרת ופותחת את האפליקציה. האפליקציה
+   * קראה את היציאה, נכנסה לאזהרה, ופתחה להורה את מסך האזהרה - רגע אחרי
+   * שהוא לחץ "ראיתי". האישור נסגר מיד אחר כך, אבל המסך נשאר.
+   */
+  const pending = vehicleDetection.getPendingEvent();
+  if (pending?.type === 'EXIT_VEHICLE' && acknowledgedSince(pending.at)) {
+    vehicleDetection.clearPendingEvent();
+    logEvent(TripEventName.VEHICLE_EXIT_DETECTED, 'כבר אושר "ראיתי" בהתראה');
+  } else {
+    await handlePendingVehicleEvent();
+  }
   await consumeNativeConfirmation();
 }
 

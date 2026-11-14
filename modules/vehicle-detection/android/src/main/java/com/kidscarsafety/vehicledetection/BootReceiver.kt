@@ -33,6 +33,14 @@ class BootReceiver : BroadcastReceiver() {
 
     // רישום מחדש. אם ההרשאה נשללה בינתיים זה ייכשל בשקט, וה-JavaScript
     // יגלה את זה בפתיחה הבאה דרך isTracking ויציג להורה שההגנה כבויה.
-    VehicleTracking.start(context.applicationContext) { _, _ -> }
+    // goAsync: הרישום מסתיים ב-callback מ-Google Play Services. בלעדיו
+    // אנדרואיד רשאי להרוג את התהליך מיד כשהפונקציה חוזרת, לפני שהרישום
+    // הושלם (ולפני ש-REGISTER_OK נכתב ליומן).
+    val pending = goAsync()
+    try {
+      VehicleTracking.start(context.applicationContext) { _, _ -> pending.finish() }
+    } catch (e: Exception) {
+      pending.finish()
+    }
   }
 }
