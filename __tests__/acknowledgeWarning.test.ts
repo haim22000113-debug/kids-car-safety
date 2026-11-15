@@ -153,8 +153,9 @@ describe('"ראיתי, אני מטפל" מהתראה כשהאפליקציה עו
     await protectionService.restoreAfterRestart();
 
     expect(tripStateService.getSnapshot().state).toBe(TripState.WARNING);
-    expect(mockScheduleWarningLadder).toHaveBeenCalled();
     expect(mockScheduleEscalation).toHaveBeenCalled();
+    // הצד הנייטיב כבר הציג את ההתראה העדינה ומתזמן את האזעקה - אין כפילות.
+    expect(mockScheduleWarningLadder).not.toHaveBeenCalled();
   });
 
   it('המזהה לפי מיקום לא מתריע על נסיעה שההורה כבר אמר עליה "ראיתי"', async () => {

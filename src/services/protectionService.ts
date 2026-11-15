@@ -114,6 +114,14 @@ function toTrip(snapshot: AutoTripSnapshot): Trip {
   };
 }
 
+/**
+ * האזהרה הנוכחית הגיעה מיציאה שהצד הנייטיב כבר הציג עליה התראה.
+ *
+ * בדיקה של הקוד: כשמשימת המיקום קראה את היציאה תוך כמה שניות, ה-JS שלח
+ * את ההתראה העדינה בפעם השנייה, עם אותו טקסט. מאופס מיד אחרי השימוש.
+ */
+let warningFromNativeExit = false;
+
 const handlers: tripStateService.Handlers = {
   onFirstWarning: async () => {
     // ההורה אמר שהילדים לא איתו - אין על מה להתריע ובטח שלא להתקשר.
@@ -145,9 +153,15 @@ const handlers: tripStateService.Handlers = {
     // שבה האזעקה תגיע גם אם האפליקציה כבר לא רצה.
     // כשהצד הנייטיב קיים, את האזעקה הוא מתזמן (scheduleEscalation למטה),
     // כי הוא לא תלוי בכך שה-JavaScript יתעורר. כאן רק ההתראה העדינה.
-    const ids = await scheduleWarningLadder(startedAt, {
-      includeUrgent: !vehicleDetection.handlesUrgentAlarm(),
-    });
+    const nativeHandles = vehicleDetection.handlesUrgentAlarm();
+    const fromNative = warningFromNativeExit;
+    warningFromNativeExit = false;
+    // כשהצד הנייטיב גם הציג את ההתראה העדינה וגם מתזמן את האזעקה, לשרשרת
+    // של ה-JS לא נשאר מה לשלוח.
+    const ids =
+      nativeHandles && fromNative
+        ? []
+        : await scheduleWarningLadder(startedAt, { includeUrgent: !nativeHandles });
     await TripStateStorage.saveWarningIds(ids);
 
     // השיחה לאיש הקשר מתוזמנת בצד הנייטיב. אם המקלט הנייטיב כבר תזמן
@@ -352,7 +366,12 @@ async function handlePendingVehicleEvent(): Promise<void> {
       await tripStateService.onVehicleEnter(pending.enteredAt);
     }
 
-    await tripStateService.onVehicleExit(locationService.getLastSample(), pending.at);
+    warningFromNativeExit = true;
+    try {
+      await tripStateService.onVehicleExit(locationService.getLastSample(), pending.at);
+    } finally {
+      warningFromNativeExit = false;
+    }
   }
 }
 
