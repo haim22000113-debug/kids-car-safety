@@ -202,7 +202,10 @@ export function assessTripStop(samples: GeoPoint[]): TripStopAssessment {
  * נראתה כמו "הנסיעה התחדשה". המכונה קפצה בין עצירה לנסיעה כל 45 שניות,
  * תקופת החסד התאפסה כל פעם, ויציאה מהרכב לפי מיקום לא זוהתה אף פעם.
  */
-export function assessTripResume(samples: GeoPoint[], stoppedAt: number): { resumed: boolean; samplesAboveSpeed: number } {
+export function assessTripResume(
+  samples: GeoPoint[],
+  stoppedAt: number
+): { resumed: boolean; samplesAboveSpeed: number; samplesAboveCrawl: number } {
   const usable = samples.filter(isReliable);
 
   let anchor = 0;
@@ -216,9 +219,18 @@ export function assessTripResume(samples: GeoPoint[], stoppedAt: number): { resu
     return speed !== null && speed >= config.TRIP_SPEED_THRESHOLD_MPS;
   }).length;
 
+  // זחילה בפקק: מהירה מהליכה, איטית מנסיעה רגילה. ראה CRAWL_SPEED_MPS.
+  const samplesAboveCrawl = window.filter((p, i) => {
+    const speed = effectiveSpeed(window[i - 1], p);
+    return speed !== null && speed >= config.CRAWL_SPEED_MPS;
+  }).length;
+
   return {
-    resumed: samplesAboveSpeed >= config.TRIP_RESUME_MIN_SAMPLES_ABOVE_SPEED,
+    resumed:
+      samplesAboveSpeed >= config.TRIP_RESUME_MIN_SAMPLES_ABOVE_SPEED ||
+      samplesAboveCrawl >= config.TRIP_RESUME_MIN_SAMPLES_ABOVE_SPEED,
     samplesAboveSpeed,
+    samplesAboveCrawl,
   };
 }
 
@@ -231,6 +243,17 @@ export function pickStopPoint(samples: GeoPoint[]): GeoPoint | null {
   const usable = samples.filter(isReliable);
   if (usable.length === 0) return null;
 
-  const recent = usable.slice(-5);
-  return recent.reduce((best, p) => (p.accuracy < best.accuracy ? p : best), recent[0]);
+  /**
+   * רק דגימות מהעצירה עצמה - בתוך רדיוס התזוזה מהדגימה האחרונה.
+   *
+   * באג שנמצא (16.11, בבדיקת פקק): בין חמש הדגימות האחרונות היו גם דגימות
+   * מהנסיעה שלפני העצירה. כשהדיוק שלהן היה טוב יותר (ו-GPS בנסיעה מדויק
+   * יותר מאשר בעמידה), נקודת העצירה נקבעה מאות מטרים אחורה בכביש. הרכב
+   * החונה נראה מיד "רחוק מהרכב", והאזהרה יצאה כשאף אחד עוד לא יצא.
+   */
+  const last = usable[usable.length - 1];
+  const recent = usable
+    .slice(-5)
+    .filter((p) => distanceMeters(p, last) <= config.TRIP_STOP_MAX_DRIFT_METERS);
+  return recent.reduce((best, p) => (p.accuracy < best.accuracy ? p : best), recent[0] ?? last);
 }

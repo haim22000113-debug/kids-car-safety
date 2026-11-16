@@ -89,6 +89,23 @@ export function acknowledgedSince(at: number | undefined): boolean {
   return ackAt > 0 && ackAt >= at && ackAt <= Date.now();
 }
 
+/**
+ * האם אזהרה שמקורה במיקום בלבד צריכה לחכות לאישור מגוגל.
+ *
+ * כן רק כשזיהוי התנועה של גוגל באמת פעיל, ועוד לא דיווח מאז העצירה על
+ * התחלת הליכה (WALK). יציאה מרכב מגוגל מגיעה ממילא כקלט נפרד ומתריעה מיד.
+ * באייפון, או כשזיהוי התנועה כבוי - לא מחכים: שם המיקום הוא כל מה שיש.
+ */
+function motionTickContext(): { awaitMotionConfirmation: boolean } {
+  if (!vehicleDetection.isSupported() || !vehicleDetection.isTracking()) {
+    return { awaitMotionConfirmation: false };
+  }
+  const stoppedAt = tripStateService.getSnapshot().stopLocation?.stoppedAt;
+  if (!stoppedAt) return { awaitMotionConfirmation: false };
+  const walked = vehicleDetection.getHistory().some((e) => e.type === 'WALK' && e.at >= stoppedAt);
+  return { awaitMotionConfirmation: !walked };
+}
+
 /** האם ההורה הגדיר עכשיו "הילדים לא איתי". */
 async function isSuppressed(): Promise<boolean> {
   const user = await UserStorage.getUser();
@@ -210,6 +227,7 @@ export async function startProtection(): Promise<{
   motion: boolean;
 }> {
   tripStateService.setHandlers(handlers);
+  tripStateService.setTickContext(motionTickContext);
   tripStateService.startEngine();
   started = true;
 
@@ -399,6 +417,7 @@ export function ensureEngineReady(): Promise<void> {
     engineReady = (async () => {
       await loadPersistedEvents();
       tripStateService.setHandlers(handlers);
+      tripStateService.setTickContext(motionTickContext);
       await tripStateService.hydrate();
     })();
   }

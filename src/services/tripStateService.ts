@@ -116,7 +116,27 @@ export async function hydrate(): Promise<AutoTripSnapshot> {
 export const onLocation = (point: GeoPoint, samples: GeoPoint[]) =>
   dispatch({ kind: 'LOCATION', point, samples, now: Date.now() });
 
-export const tick = () => dispatch({ kind: 'TICK', now: Date.now() });
+/**
+ * מה שפעימת הזמן צריכה לדעת מהעולם החיצון, בלי שהמכונה תפנה ל-OS.
+ * מוזרק מ-protectionService (זיהוי התנועה של גוגל). ראה
+ * LOCATION_ONLY_WARNING_DELAY_SECONDS.
+ */
+export type TickContext = () => { awaitMotionConfirmation?: boolean };
+let tickContext: TickContext = () => ({});
+
+export function setTickContext(next: TickContext): void {
+  tickContext = next;
+}
+
+export const tick = () => {
+  let context: ReturnType<TickContext> = {};
+  try {
+    context = tickContext();
+  } catch {
+    // בספק - בלי המתנה נוספת. עדיף אזהרה מוקדמת מאזהרה שלא יצאה.
+  }
+  return dispatch({ kind: 'TICK', now: Date.now(), ...context });
+};
 
 /**
  * ב-now אפשר להעביר את הזמן שבו האירוע באמת קרה ולא את הזמן עכשיו.

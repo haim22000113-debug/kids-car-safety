@@ -66,6 +66,16 @@ class CountdownActivity : Activity() {
     val remaining = maxOf(0L, VehicleDetectionStore.getCallAt(this) - System.currentTimeMillis())
     timer = object : CountDownTimer(remaining, 200L) {
       override fun onTick(msLeft: Long) {
+        // ההורה אישר במקום אחר (כפתור בהתראה, או מתוך האפליקציה). בלי זה
+        // המסך המשיך לצלצל עד סוף הספירה - עכשיו דקה שלמה - אחרי "ראיתי".
+        if (VehicleDetectionStore.getEscalationState(this@CountdownActivity) !=
+          VehicleDetectionStore.ESC_COUNTDOWN
+        ) {
+          cancel()
+          stopAlarm()
+          finish()
+          return
+        }
         countText.text = ((msLeft + 999L) / 1000L).toString()
       }
 

@@ -25,7 +25,12 @@ export type MachineInput =
   /** דגימת מיקום חדשה, עם חלון הדגימות האחרונות. */
   | { kind: 'LOCATION'; point: GeoPoint; samples: GeoPoint[]; now: number }
   /** פעימת זמן - מטפלת במעברים שתלויים רק בזמן שעבר. */
-  | { kind: 'TICK'; now: number }
+  /**
+   * awaitMotionConfirmation: באנדרואיד, כשזיהוי התנועה של גוגל פעיל ועוד לא
+   * אישר שההורה הולך. אז אזהרה שמקורה במיקום בלבד מחכה עוד קצת. ראה
+   * LOCATION_ONLY_WARNING_DELAY_SECONDS.
+   */
+  | { kind: 'TICK'; now: number; awaitMotionConfirmation?: boolean }
   /** זוהתה יציאה מרכב על ידי חיישני התנועה (אנדרואיד). */
   | { kind: 'VEHICLE_EXIT'; now: number; point?: GeoPoint }
   /** זוהתה כניסה לרכב על ידי חיישני התנועה (אנדרואיד). */
@@ -179,7 +184,9 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
       snapshot.state === TripState.ACTIVE ||
       snapshot.state === TripState.STOPPED ||
       snapshot.state === TripState.GRACE_PERIOD ||
-      snapshot.state === TripState.POSSIBLE_TRIP
+      snapshot.state === TripState.POSSIBLE_TRIP ||
+      // המיקום כבר אמר "התרחק", וגוגל מאשרת: לא מחכים יותר.
+      snapshot.state === TripState.LEFT_VEHICLE_AREA
     ) {
       const stop: VehicleStopLocation | undefined = input.point
         ? {
@@ -281,7 +288,12 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
          * הדגימה הבאה כבר תסגור את זה כ"הנסיעה התחדשה".
          */
         const deviceSpeed = input.point.speed ?? 0;
-        if (startAgain.samplesAboveSpeed > 0 || deviceSpeed >= config.TRIP_SPEED_THRESHOLD_MPS) {
+        // גם זחילה בפקק (מעל CRAWL_SPEED_MPS) היא רכב ולא הליכה.
+        if (
+          startAgain.samplesAboveSpeed > 0 ||
+          startAgain.samplesAboveCrawl > 0 ||
+          deviceSpeed >= config.CRAWL_SPEED_MPS
+        ) {
           break;
         }
 
@@ -291,6 +303,19 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
         if (graceOver && hasLeftVehicleArea(snapshot.stopLocation, input.point)) {
           events.push({ name: TripEventName.USER_LEFT_GEOFENCE });
           goTo(TripState.LEFT_VEHICLE_AREA);
+        }
+        break;
+      }
+
+      case TripState.LEFT_VEHICLE_AREA: {
+        // עוד לפני האזהרה: אם התברר שהרכב ממשיך לנסוע (גם בזחילה של פקק),
+        // זו לא הייתה יציאה מהרכב.
+        if (!snapshot.stopLocation) break;
+        const resumed = assessTripResume(input.samples, snapshot.stopLocation.stoppedAt);
+        if (resumed.resumed) {
+          effects.push({ type: 'REMOVE_GEOFENCE' });
+          events.push({ name: TripEventName.GEOFENCE_REMOVED, detail: 'הנסיעה התחדשה' });
+          goTo(TripState.ACTIVE, { stopLocation: undefined });
         }
         break;
       }
@@ -307,9 +332,10 @@ export function reduce(snapshot: AutoTripSnapshot, input: MachineInput): Machine
   if (input.kind === 'TICK') {
     switch (snapshot.state) {
       case TripState.LEFT_VEHICLE_AREA: {
-        if (
-          secondsSince(snapshot.stateSince, input.now) >= config.FIRST_WARNING_DELAY_SECONDS
-        ) {
+        const delay = input.awaitMotionConfirmation
+          ? config.LOCATION_ONLY_WARNING_DELAY_SECONDS
+          : config.FIRST_WARNING_DELAY_SECONDS;
+        if (secondsSince(snapshot.stateSince, input.now) >= delay) {
           events.push({ name: TripEventName.WARNING_SENT });
           effects.push({ type: 'SEND_FIRST_WARNING' });
           goTo(TripState.WARNING, { firstWarningAt: input.now });
