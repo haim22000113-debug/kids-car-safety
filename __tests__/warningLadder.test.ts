@@ -30,8 +30,9 @@ describe('ציר הזמן של ההסלמה', () => {
     expect(callAt).toBe(120);
   });
 
-  it('יש ספירה לאחור לפני השיחה, כדי שאפשר יהיה לבטל', () => {
-    expect(config.CALL_COUNTDOWN_SECONDS).toBeGreaterThanOrEqual(5);
+  it('יש ספירה לאחור של חצי דקה לפני השיחה (החלטת הבעלים)', () => {
+    // עשר שניות לא הספיקו להגיע לטלפון ולכבות.
+    expect(config.CALL_COUNTDOWN_SECONDS).toBe(30);
   });
 
   it('האזעקה מגיעה לפני הספירה לאחור', () => {
