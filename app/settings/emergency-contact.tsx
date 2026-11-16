@@ -77,7 +77,7 @@ export default function EmergencyContact() {
       <Text style={styles.title}>איש קשר לחירום</Text>
       <Text style={styles.subtitle}>
         {AUTO_CALL_SUPPORTED
-          ? 'אם לא תאשר שראית את ההתראות תוך שתי דקות וחצי, נתקשר לאדם הזה.'
+          ? 'אם לא תאשר שראית את ההתראות תוך ארבע דקות, נתקשר לאדם הזה.'
           : 'בזמן אזהרה, לחיצה אחת תתקשר לאדם הזה. באייפון האפליקציה לא יכולה להתקשר בעצמה.'}
       </Text>
 

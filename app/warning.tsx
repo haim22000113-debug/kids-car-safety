@@ -90,7 +90,7 @@ export default function Warning() {
         {contact ? (
           <Text style={styles.callNote}>
             {AUTO_CALL_SUPPORTED
-              ? `אם לא תאשר תוך שתי דקות וחצי מהזיהוי, נתקשר ל${contact.name}.`
+              ? `אם לא תאשר תוך ארבע דקות מהזיהוי, נתקשר ל${contact.name}.`
               : `צריך עזרה? "אני צריך עזרה" מתקשר ל${contact.name} בלחיצה אחת.`}
           </Text>
         ) : null}

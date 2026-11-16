@@ -128,7 +128,7 @@ object VehicleDetectionStore {
 
   fun getContactName(context: Context): String = prefs(context).getString(KEY_CONTACT_NAME, "") ?: ""
   fun getContactPhone(context: Context): String = prefs(context).getString(KEY_CONTACT_PHONE, "") ?: ""
-  fun getCallDeadlineMs(context: Context): Long = prefs(context).getLong(KEY_CALL_DEADLINE_MS, 150_000L)
+  fun getCallDeadlineMs(context: Context): Long = prefs(context).getLong(KEY_CALL_DEADLINE_MS, 240_000L)
   fun getCountdownMs(context: Context): Long = prefs(context).getLong(KEY_COUNTDOWN_MS, 60_000L)
   /** כמה זמן מהיציאה מהרכב עד האזעקה. ברירת המחדל זהה ל-config.ts. */
   fun getUrgentDelayMs(context: Context): Long = prefs(context).getLong(KEY_URGENT_DELAY_MS, 60_000L)
