@@ -341,6 +341,8 @@ async function consumeNativeConfirmation(): Promise<void> {
   const confirmedAt = vehicleDetection.consumeConfirmation();
   if (!confirmedAt) return;
 
+  await closeManualTripsAfterAck(confirmedAt);
+
   const snapshot = tripStateService.getSnapshot();
   if (!tripStateService.needsAttention(snapshot.state)) return;
 
@@ -455,6 +457,29 @@ export async function restoreAfterRestart(): Promise<void> {
  * **בכל מקרה**, בלי קשר למה שהמכונה חושבת. הורה שאמר "ראיתי" לא אמור
  * לשמוע עוד צלצול אחד, גם אם משהו בדרך השתבש.
  */
+/**
+ * "ראיתי" אחד סוגר הכל - גם נסיעה ידנית שההורה שכח לסיים.
+ *
+ * בקשת הבעלים (16.11): ההורה הוריד את הילדים ולא סיים את הנסיעה הידנית
+ * באפליקציה. הוא אישר את האזהרה האוטומטית, ובכל זאת המשיכו להגיע תזכורות
+ * "הנסיעה עדיין פעילה" ותזכורות בדיקה. רק נסיעות שהתחילו לפני האישור:
+ * נסיעה חדשה שהתחילה אחריו לא קשורה אליו.
+ */
+async function closeManualTripsAfterAck(ackAt: number): Promise<void> {
+  const candidates = [await TripStorage.getActiveTrip(), await TripStorage.getPendingConfirmationTrip()];
+  const seen = new Set<string>();
+  for (const trip of candidates) {
+    if (!trip || seen.has(trip.id) || trip.status === 'CONFIRMED') continue;
+    seen.add(trip.id);
+    if (new Date(trip.startTime).getTime() > ackAt) continue;
+    await cancelReminders(trip.startNotificationIds);
+    await cancelReminders(trip.reminderNotificationIds);
+    const at = new Date(ackAt).toISOString();
+    await TripStorage.saveTrip({ ...trip, endTime: trip.endTime ?? at, confirmedAt: at, status: 'CONFIRMED' });
+    logEvent(TripEventName.USER_CONFIRMED_SAFE, 'נסגרה גם הנסיעה הידנית');
+  }
+}
+
 export async function acknowledgeWarning(): Promise<void> {
   // ראשון, ובלי לחכות לכלום: האזעקה והשיחה בצד הנייטיב.
   vehicleDetection.cancelEscalation();
@@ -465,5 +490,6 @@ export async function acknowledgeWarning(): Promise<void> {
   const ids = await TripStateStorage.loadWarningIds();
   await cancelWarningLadder(ids);
   await TripStateStorage.clearWarningIds();
+  await closeManualTripsAfterAck(Date.now());
   logEvent(TripEventName.USER_CONFIRMED_SAFE, 'ראיתי, אני מטפל (מהתראה)');
 }

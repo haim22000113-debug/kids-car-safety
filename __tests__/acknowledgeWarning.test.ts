@@ -200,4 +200,42 @@ describe('"ראיתי, אני מטפל" מהתראה כשהאפליקציה עו
     expect(tripStateService.getSnapshot().state).toBe(TripState.WARNING);
     expect(mockScheduleWarningLadder).toHaveBeenCalled();
   });
+
+  it('"ראיתי" סוגר גם נסיעה ידנית שההורה שכח לסיים, ומבטל את התזכורות שלה', async () => {
+    const { TripStorage } = require('../src/storage');
+    const mockCancelReminders = require('../src/notifications/notificationService').cancelReminders;
+    const startedAt = new Date(Date.now() - 20 * 60_000).toISOString();
+    await TripStorage.saveTrip({
+      id: 'manual-1',
+      startTime: startedAt,
+      status: 'TRIP_ACTIVE',
+      childrenIds: [],
+      remindersSent: 0,
+      skippedSafetyCheck: false,
+      startNotificationIds: ['still-active-reminder'],
+    });
+
+    const protectionService = require('../src/services/protectionService');
+    await protectionService.acknowledgeWarning();
+
+    const trip = await TripStorage.getTripById('manual-1');
+    expect(trip.status).toBe('CONFIRMED');
+    expect(mockCancelReminders).toHaveBeenCalledWith(['still-active-reminder']);
+    expect(await TripStorage.getActiveTrip()).toBeNull();
+  });
+
+  it('נסיעה ידנית שהתחילה אחרי האישור לא נסגרת', async () => {
+    const { TripStorage } = require('../src/storage');
+    await TripStorage.saveTrip({
+      id: 'manual-2',
+      startTime: new Date(Date.now() + 60_000).toISOString(),
+      status: 'TRIP_ACTIVE',
+      childrenIds: [],
+      remindersSent: 0,
+      skippedSafetyCheck: false,
+    });
+    const protectionService = require('../src/services/protectionService');
+    await protectionService.acknowledgeWarning();
+    expect((await TripStorage.getTripById('manual-2')).status).toBe('TRIP_ACTIVE');
+  });
 });
