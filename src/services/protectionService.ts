@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { AutoTripSnapshot, TripState } from '../models/TripState';
-import { Trip } from '../models';
+import { Trip, isAutoProtectionEnabled } from '../models';
 import { TripStorage, TripStateStorage, UserStorage } from '../storage';
 import { config } from '../config';
 import * as tripStateService from './tripStateService';
@@ -298,6 +298,29 @@ export async function confirmManualTrip(tripId: string): Promise<void> {
   // אותו מרוץ כמו ב-acknowledgeWarning: קודם לטעון מצב, ואז לאשר.
   await ensureEngineReady();
   await confirmFromManualCheck();
+}
+
+/**
+ * מוודא שההגנה באמת רצה, אם ההורה לא כיבה אותה.
+ *
+ * בדיקת שטח (16.11, אחרי התקנה מחדש): ההגנה הודלקה בפתיחה הראשונה, לפני
+ * שההורה אישר את ההרשאות - ולכן בלי זיהוי תנועה. ההרשאות אושרו כמה שניות
+ * אחר כך, אבל אף אחד לא רשם מחדש את המעקב: גוגל לא דיווחה על אף נסיעה
+ * שעתיים, עד שההורה פתח שוב את מסך הבית. נקרא מכל חזרה של האפליקציה
+ * לחזית ומכל שינוי במסך ההרשאות. זול כשהכל כבר רץ.
+ */
+export async function ensureProtectionRunning(): Promise<void> {
+  try {
+    const user = await UserStorage.getUser();
+    if (!user || !isAutoProtectionEnabled(user.settings)) return;
+    const motionMissing =
+      vehicleDetection.isSupported() && !vehicleDetection.isTracking() && (await vehicleDetection.hasPermission());
+    if (!started || motionMissing) {
+      await startProtection();
+    }
+  } catch {
+    // לא מקריסים בגלל זה - מסך הבית ינסה שוב בפתיחה הבאה.
+  }
 }
 
 export function isStarted(): boolean {

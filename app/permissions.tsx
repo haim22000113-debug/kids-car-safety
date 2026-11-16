@@ -11,6 +11,7 @@ import { theme } from '../src/theme';
 import { TEXT_RIGHT } from '../src/i18n/rtl';
 import * as locationService from '../src/services/locationService';
 import * as vehicleDetection from '../modules/vehicle-detection';
+import * as protectionService from '../src/services/protectionService';
 import {
   requestNotificationPermission,
   hasNotificationPermission,
@@ -58,6 +59,9 @@ export default function Permissions() {
       setBattery(vehicleDetection.isIgnoringBatteryOptimizations());
       setExactAlarm(vehicleDetection.canScheduleExactAlarms());
     }
+    // הרשאה שאושרה עכשיו צריכה להפעיל את המעקב עכשיו, לא בפתיחה הבאה של
+    // מסך הבית. ראה ensureProtectionRunning.
+    await protectionService.ensureProtectionRunning();
   }, []);
 
   useEffect(() => {

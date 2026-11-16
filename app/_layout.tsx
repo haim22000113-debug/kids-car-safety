@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { ensureRTL } from '../src/i18n/rtl';
@@ -63,6 +64,8 @@ export default function RootLayout() {
     // התראה שנלחצת בזמן שהאפליקציה פתוחה/ברקע (סעיף 14 - לחיצה על התראה
     // מעבירה ישר ל-Safety Check).
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      // אותה סיבה כמו למטה: הלחיצה הזו לא תשוחזר בפתיחה הבאה.
+      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
       /**
        * לחיצה על כפתור "ראיתי, אני מטפל" שעל ההתראה עצמה.
        *
@@ -83,6 +86,12 @@ export default function RootLayout() {
     // מקרה של פתיחת האפליקציה מאפס על ידי לחיצה על התראה (cold start).
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
+      /**
+       * מנקים מיד, כדי שאותה לחיצה לא "תשוחזר" בפתיחה הבאה של האפליקציה.
+       * בלי זה, לחיצה ישנה על אזהרה הייתה יכולה לאשר אזהרה חדשה לגמרי -
+       * ולבטל את השיחה לאיש הקשר - כשההורה רק פתח את האפליקציה.
+       */
+      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
       if (response.actionIdentifier === ACTION_CONFIRM_SAFE) {
         void confirmFromNotification(response.notification.request.content.data);
         router.replace('/safe');
@@ -99,7 +108,13 @@ export default function RootLayout() {
     // 2. רק אחר כך קוראים את מה שהמודול הנייטיב רשם בזמן שלא היינו.
     //    הוא צריך להגיע למכונה שכבר יודעת מה היה המצב, אחרת האירוע
     //    ייפול על מצב IDLE ריק וייעלם.
-    void protectionService.restoreAfterRestart();
+    void protectionService.restoreAfterRestart().then(() => protectionService.ensureProtectionRunning());
+
+    // כל חזרה לאפליקציה: מוודאים שההגנה באמת רצה (למשל אחרי שההורה אישר
+    // הרשאה בהגדרות המערכת). ראה ensureProtectionRunning.
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void protectionService.ensureProtectionRunning();
+    });
 
     // התראה שמגיעה בזמן שהאפליקציה פתוחה - לצורכי אנליטיקס בלבד.
     // נספרות רק תזכורות בדיקת הבטיחות, לא ההתראה של תחילת נסיעה.
@@ -112,6 +127,7 @@ export default function RootLayout() {
     return () => {
       responseSub.remove();
       receivedSub.remove();
+      appStateSub.remove();
     };
   }, []);
 
