@@ -59,6 +59,9 @@ describe('יומן האבחון בעברית', () => {
       'אין קליטה, השיחה לא יצאה. ניסיון נוסף בעוד דקה — ניסיון 3'
     );
     expect(translateDetail('level=15')).toBe('סוללה 15%');
+    // בדיקת שטח 23.11: הליכה "חדשה" כשההורה עמד במקום - בפועל דיווח ישן שחזר.
+    expect(translateDetail('walking delay=1205s')).toBe('דיווח ישן שחזר: ההליכה הייתה לפני 20 דקות');
+    expect(translateDetail('walking delay=16s')).toBe('הליכה, איחור של 16 שניות');
     expect(translateDetail('BOOT_COMPLETED')).toBe('הטלפון הופעל');
     expect(translateDetail('ENTER delay=1013s')).toBe('כניסה, איחור של 1013 שניות');
     expect(translateDetail('הגנה: מיקום=true, תנועה=false')).toBe('הגנה: מיקום=כן, תנועה=לא');

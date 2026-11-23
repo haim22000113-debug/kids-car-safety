@@ -74,6 +74,9 @@ export const NATIVE_LABELS: Record<string, string> = {
   CALL_GAVE_UP: 'אין קליטה כבר רבע שעה, ניסיון אחרון',
 };
 
+/** איחור שמעליו דיווח של גוגל הוא כמעט בוודאות דיווח ישן שחזר, לא זיהוי חדש. */
+const OLD_REPORT_SECONDS = 300;
+
 /** פרטים שלמים שיש להם תרגום קבוע. */
 const WHOLE_DETAILS: Record<string, string> = {
   'children not with me': 'הילדים לא איתי',
@@ -131,6 +134,17 @@ export function nativeLabel(type: string): string {
 export function translateDetail(detail: string): string {
   const whole = WHOLE_DETAILS[detail.trim()];
   if (whole) return whole;
+
+  /**
+   * הליכה עם איחור גדול = דיווח ישן שגוגל שולחת שוב בכל רישום מחדש (עדכון
+   * אפליקציה, פתיחה). הבעלים (23.11) ראה "התחלת הליכה" כשעמד במקום וחשב
+   * שזה זיהוי שגוי. בפועל זו ההליכה מהרכב מלפני 20 דקות.
+   */
+  const oldWalk = detail.match(/^walking delay=(\d+)s$/);
+  if (oldWalk && Number(oldWalk[1]) >= OLD_REPORT_SECONDS) {
+    return `דיווח ישן שחזר: ההליכה הייתה לפני ${Math.round(Number(oldWalk[1]) / 60)} דקות`;
+  }
+
   return detail
     .replace(/\bdelay=(-?\d+)s\b/g, 'איחור של $1 שניות')
     .replace(/\balarm_in=(-?\d+)s\b/g, 'אזעקה בעוד $1 שניות,')
