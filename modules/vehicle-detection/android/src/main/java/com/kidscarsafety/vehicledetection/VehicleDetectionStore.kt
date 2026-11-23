@@ -99,6 +99,7 @@ object VehicleDetectionStore {
   private const val KEY_ESC_STATE = "escalation_state"
   private const val KEY_ESC_FOR = "escalation_for"
   private const val KEY_ESC_CALL_AT = "escalation_call_at"
+  private const val KEY_CALL_RETRIES = "call_retries"
   private const val KEY_CONFIRMED_AT = "native_confirmed_at"
   private const val KEY_SUPPRESS_UNTIL = "suppress_until"
   private const val KEY_SUPPRESS_NEXT = "suppress_next"
@@ -175,6 +176,12 @@ object VehicleDetectionStore {
     prefs(context).edit().putLong(KEY_ESC_CALL_AT, at).commit()
   }
   fun getCallAt(context: Context): Long = prefs(context).getLong(KEY_ESC_CALL_AT, 0L)
+
+  /** כמה פעמים השיחה נדחתה בגלל שאין קליטה. מתאפס בכל הסלמה חדשה. */
+  fun setCallRetries(context: Context, n: Int) {
+    prefs(context).edit().putInt(KEY_CALL_RETRIES, n).commit()
+  }
+  fun getCallRetries(context: Context): Int = prefs(context).getInt(KEY_CALL_RETRIES, 0)
 
   /** ההורה לחץ "ראיתי" בצד הנייטיב. ה-JS קורא את זה ומסיים את האירוע. */
   fun markConfirmed(context: Context) {

@@ -55,6 +55,9 @@ describe('יומן האבחון בעברית', () => {
     expect(translateDetail('alarm_in=59s call_in=119s inexact')).toBe(
       'אזעקה בעוד 59 שניות, שיחה בעוד 119 שניות (זמן משוער, חסר אישור "התראות ותזכורות")'
     );
+    expect(nativeLabel('CALL_NO_SIGNAL') + ' — ' + translateDetail('try=3')).toBe(
+      'אין קליטה, השיחה לא יצאה. ניסיון נוסף בעוד דקה — ניסיון 3'
+    );
     expect(translateDetail('BOOT_COMPLETED')).toBe('הטלפון הופעל');
     expect(translateDetail('ENTER delay=1013s')).toBe('כניסה, איחור של 1013 שניות');
     expect(translateDetail('הגנה: מיקום=true, תנועה=false')).toBe('הגנה: מיקום=כן, תנועה=לא');

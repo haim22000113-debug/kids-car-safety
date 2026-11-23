@@ -69,6 +69,8 @@ export const NATIVE_LABELS: Record<string, string> = {
   CALL_PLACED: 'יצאה שיחה לאיש הקשר',
   CALL_FAILED: 'השיחה נכשלה',
   CALL_NO_PERMISSION: 'אין הרשאה לשיחה',
+  CALL_NO_SIGNAL: 'אין קליטה, השיחה לא יצאה. ניסיון נוסף בעוד דקה',
+  CALL_GAVE_UP: 'אין קליטה כבר רבע שעה, ניסיון אחרון',
 };
 
 /** פרטים שלמים שיש להם תרגום קבוע. */
@@ -132,5 +134,6 @@ export function translateDetail(detail: string): string {
     .replace(/\bdelay=(-?\d+)s\b/g, 'איחור של $1 שניות')
     .replace(/\balarm_in=(-?\d+)s\b/g, 'אזעקה בעוד $1 שניות,')
     .replace(/\bcall_in=(-?\d+)s\b/g, 'שיחה בעוד $1 שניות')
+    .replace(/\btry=(\d+)\b/g, 'ניסיון $1')
     .replace(WORD_PATTERN, (word) => WORDS[word] ?? word);
 }

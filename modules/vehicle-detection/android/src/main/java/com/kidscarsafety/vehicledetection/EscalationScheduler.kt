@@ -13,7 +13,9 @@ import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.telecom.TelecomManager
+import android.telephony.TelephonyManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -54,6 +56,14 @@ object EscalationScheduler {
   private const val RC_ACTIVITY = 104
   private const val RC_URGENT = 106
   private const val RC_TAP_ACK = 108
+
+  /**
+   * אין קליטה בזמן השיחה: מנסים שוב כל דקה, עד רבע שעה (בקשת הבעלים, 23.11).
+   * בכל ניסיון ההורה מקבל התראה בעוצמת אזעקה שהשיחה לא יצאה - כי אם אין
+   * שיחה, הטלפון שלו הוא כל מה שנשאר. "ראיתי" עוצר גם את זה.
+   */
+  private const val CALL_RETRY_INTERVAL_MS = 60_000L
+  private const val CALL_RETRY_MAX = 15
 
   /** מרווח שבתוכו שני תזמונים נחשבים לאותו אירוע. */
   private const val SAME_EVENT_WINDOW_MS = 30_000L
@@ -126,6 +136,7 @@ object EscalationScheduler {
 
     VehicleDetectionStore.setEscalationFor(context, callAt)
     VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_SCHEDULED)
+    VehicleDetectionStore.setCallRetries(context, 0)
 
     val countdownAt = maxOf(now + 1_000L, callAt - VehicleDetectionStore.getCountdownMs(context))
     setAlarm(context, countdownAt, broadcast(context, ACTION_COUNTDOWN, RC_COUNTDOWN))
@@ -235,6 +246,22 @@ object EscalationScheduler {
    */
   fun placeCall(context: Context, activity: Activity?) {
     if (VehicleDetectionStore.getEscalationState(context) != VehicleDetectionStore.ESC_COUNTDOWN) return
+
+    // אין קליטה (או אין סים, או מצב טיסה): שיחה עכשיו פשוט לא תצא, בשקט.
+    // משאירים את השלב בספירה ומתזמנים ניסיון נוסף. אחרי רבע שעה - מנסים בכל זאת.
+    if (!hasCellService(context)) {
+      val tries = VehicleDetectionStore.getCallRetries(context) + 1
+      VehicleDetectionStore.setCallRetries(context, tries)
+      if (tries <= CALL_RETRY_MAX) {
+        VehicleDetectionStore.appendHistory(context, "CALL_NO_SIGNAL", "try=$tries")
+        postNoSignal(context)
+        setAlarm(
+          context, System.currentTimeMillis() + CALL_RETRY_INTERVAL_MS, broadcast(context, ACTION_CALL, RC_CALL)
+        )
+        return
+      }
+      VehicleDetectionStore.appendHistory(context, "CALL_GAVE_UP")
+    }
     // מסמנים לפני החיוג, כדי שהמסלול השני (מסך/מעורר) לא יחייג שוב.
     VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_CALLED)
     cancelAlarm(context, broadcast(context, ACTION_CALL, RC_CALL))
@@ -270,6 +297,22 @@ object EscalationScheduler {
       }
     }
     postDialFallback(context)
+  }
+
+  /**
+   * האם יש לטלפון רשת סלולרית לשיחה. בלי הרשאות נוספות: סים מוכן, מפעיל
+   * רשום, ולא מצב טיסה. בספק - מחזירים true ומנסים להתקשר: עדיף ניסיון
+   * שנכשל מאשר שיחה שלא נוסתה.
+   */
+  private fun hasCellService(context: Context): Boolean {
+    return try {
+      val airplane = Settings.Global.getInt(context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+      if (airplane) return false
+      val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+      tm.simState == TelephonyManager.SIM_STATE_READY && !tm.networkOperator.isNullOrEmpty()
+    } catch (e: Exception) {
+      true
+    }
   }
 
   // ---------- התראות ----------
@@ -339,6 +382,23 @@ object EscalationScheduler {
       .setSmallIcon(smallIcon(context))
       .setContentTitle("עדיין לא אישרת")
       .setContentText("בדקת שכל הילדים יצאו מהרכב?")
+      .setPriority(NotificationCompat.PRIORITY_MAX)
+      .setCategory(NotificationCompat.CATEGORY_ALARM)
+      .setAutoCancel(true)
+      .addAction(0, "ראיתי, אני מטפל", acknowledgeIntent(context))
+      .setContentIntent(tapToAcknowledgeIntent(context))
+    post(context, builder)
+  }
+
+  private fun postNoSignal(context: Context) {
+    ensureChannel(context)
+    val name = VehicleDetectionStore.getContactName(context).ifBlank { "איש הקשר" }
+    val body = "אין קליטה, ולא הצלחנו להתקשר ל$name. בדקת שכל הילדים יצאו מהרכב? ננסה שוב בעוד דקה."
+    val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+      .setSmallIcon(smallIcon(context))
+      .setContentTitle("השיחה לא יצאה")
+      .setContentText(body)
+      .setStyle(NotificationCompat.BigTextStyle().bigText(body))
       .setPriority(NotificationCompat.PRIORITY_MAX)
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setAutoCancel(true)
