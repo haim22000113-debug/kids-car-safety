@@ -13,6 +13,7 @@ jest.mock('../modules/vehicle-detection', () => ({
   startTracking: () => mockStartMotion(),
   stopTracking: async () => true,
   configureEscalation: jest.fn(),
+  setLowBatteryPercent: jest.fn(),
   setSuppression: jest.fn(),
   consumeSuppressionUsed: () => false,
 }));

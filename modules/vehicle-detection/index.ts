@@ -39,6 +39,7 @@ interface VehicleDetectionNativeModule extends NativeModule {
   isIgnoringBatteryOptimizations(): boolean;
   canScheduleExactAlarms(): boolean;
   getLastAckAt(): number;
+  setLowBatteryPercent(percent: number): void;
 }
 
 /** רשומה ביומן האבחון הנייטיב. אין בה מיקום - רק סוג, שעה ופרטים טכניים. */
@@ -256,4 +257,9 @@ export function canScheduleExactAlarms(): boolean {
  */
 export function getLastAckAt(): number {
   return safe(() => native!.getLastAckAt(), 0);
+}
+
+/** מתחת לאחוז הזה, בתחילת נסיעה ובלי מטען, ההורה מקבל התראה עדינה. */
+export function setLowBatteryPercent(percent: number): void {
+  safe(() => native!.setLowBatteryPercent(percent), undefined);
 }

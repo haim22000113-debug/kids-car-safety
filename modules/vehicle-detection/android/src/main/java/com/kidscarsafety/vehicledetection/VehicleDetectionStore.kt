@@ -100,6 +100,7 @@ object VehicleDetectionStore {
   private const val KEY_ESC_FOR = "escalation_for"
   private const val KEY_ESC_CALL_AT = "escalation_call_at"
   private const val KEY_CALL_RETRIES = "call_retries"
+  private const val KEY_LOW_BATTERY_PERCENT = "low_battery_percent"
   private const val KEY_CONFIRMED_AT = "native_confirmed_at"
   private const val KEY_SUPPRESS_UNTIL = "suppress_until"
   private const val KEY_SUPPRESS_NEXT = "suppress_next"
@@ -176,6 +177,12 @@ object VehicleDetectionStore {
     prefs(context).edit().putLong(KEY_ESC_CALL_AT, at).commit()
   }
   fun getCallAt(context: Context): Long = prefs(context).getLong(KEY_ESC_CALL_AT, 0L)
+
+  /** ברירת המחדל זהה ל-LOW_BATTERY_WARNING_PERCENT ב-config.ts. */
+  fun setLowBatteryPercent(context: Context, percent: Int) {
+    prefs(context).edit().putInt(KEY_LOW_BATTERY_PERCENT, percent).apply()
+  }
+  fun getLowBatteryPercent(context: Context): Int = prefs(context).getInt(KEY_LOW_BATTERY_PERCENT, 20)
 
   /** כמה פעמים השיחה נדחתה בגלל שאין קליטה. מתאפס בכל הסלמה חדשה. */
   fun setCallRetries(context: Context, n: Int) {

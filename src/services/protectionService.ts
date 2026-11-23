@@ -62,6 +62,7 @@ export async function syncNativeConfig(): Promise<void> {
     URGENT_ALARM_DELAY_MS,
     config.ACK_COVERS_TRIP_MINUTES * 60_000
   );
+  vehicleDetection.setLowBatteryPercent(config.LOW_BATTERY_WARNING_PERCENT);
 
   // אם הצד הנייטיב כבר ניצל את הדילוג החד-פעמי ("רק לנסיעה הזו"),
   // מכבים את ההגדרה גם אצל ההורה - אחרת היא הייתה נשארת דלוקה לנצח.

@@ -19,6 +19,7 @@ jest.mock('../modules/vehicle-detection', () => ({
   getLastAckAt: () => mockLastAckAt,
   cancelEscalation: () => mockCancelEscalation(),
   configureEscalation: jest.fn(),
+  setLowBatteryPercent: jest.fn(),
   scheduleEscalation: (at: number) => mockScheduleEscalation(at),
   setSuppression: jest.fn(),
   consumeSuppressionUsed: () => false,

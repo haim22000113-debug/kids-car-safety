@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
+import android.os.BatteryManager
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.SystemClock
@@ -35,6 +37,8 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
      */
     const val CHANNEL_ID = "vehicle-exit-gentle-v3"
     const val NOTIFICATION_ID = 4711
+    private const val BATTERY_NOTIFICATION_ID = 4713
+    private const val BATTERY_CHANNEL_ID = "battery-low-v1"
     const val EXTRA_FROM_DETECTION = "from_vehicle_detection"
 
     /**
@@ -94,6 +98,7 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           )
           VehicleDetectionStore.setLastVehicleEnterAt(context, happenedAt)
           VehicleDetectionStore.appendHistory(context, "ENTER", "delay=${delaySec}s")
+          warnIfLowBattery(context)
         }
 
         ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
@@ -124,6 +129,45 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
           EscalationScheduler.schedule(context, now + VehicleDetectionStore.getCallDeadlineMs(context))
         }
       }
+    }
+  }
+
+  /**
+   * סוללה חלשה בתחילת נסיעה: התראה עדינה אחת (בקשת הבעלים, 23.11).
+   *
+   * בדיקת שטח: הטלפון נכבה באמצע היום ואזהרה אחת לא הגיעה. טלפון כבוי
+   * הוא אפס הגנה, ותחילת הנסיעה היא הרגע שבו עוד אפשר לחבר מטען ברכב.
+   * צליל רגיל ולא אזעקה - ההורה נוהג. לא כשהטלפון כבר בטעינה.
+   */
+  private fun warnIfLowBattery(context: Context) {
+    try {
+      val status = context.applicationContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return
+      val level = status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+      val scale = status.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+      if (level < 0 || scale <= 0) return
+      val percent = level * 100 / scale
+      val plugged = status.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
+      if (plugged || percent > VehicleDetectionStore.getLowBatteryPercent(context)) return
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(BATTERY_CHANNEL_ID, "סוללה חלשה", NotificationManager.IMPORTANCE_DEFAULT)
+        channel.description = "כשהסוללה חלשה בתחילת נסיעה. טלפון כבוי לא יכול להזהיר."
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+          .createNotificationChannel(channel)
+      }
+      val iconId = context.resources.getIdentifier("notification_icon", "drawable", context.packageName)
+        .takeIf { it != 0 } ?: android.R.drawable.ic_dialog_info
+      val body = "אם הטלפון ייכבה, ההגנה תיפסק. כדאי לחבר אותו למטען."
+      val builder = NotificationCompat.Builder(context, BATTERY_CHANNEL_ID)
+        .setSmallIcon(iconId)
+        .setContentTitle("הסוללה חלשה ($percent%)")
+        .setContentText(body)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+        .setAutoCancel(true)
+      NotificationManagerCompat.from(context).notify(BATTERY_NOTIFICATION_ID, builder.build())
+      VehicleDetectionStore.appendHistory(context, "LOW_BATTERY", "level=$percent")
+    } catch (e: Exception) {
+      // רק אזהרה - אסור שתפריע לזיהוי הנסיעה.
     }
   }
 

@@ -99,6 +99,10 @@ class VehicleDetectionModule : Module() {
       )
     }
 
+    Function("setLowBatteryPercent") { percent: Double ->
+      VehicleDetectionStore.setLowBatteryPercent(context, percent.toInt())
+    }
+
     Function("scheduleEscalation") { callAtMs: Double ->
       EscalationScheduler.schedule(context, callAtMs.toLong())
     }
