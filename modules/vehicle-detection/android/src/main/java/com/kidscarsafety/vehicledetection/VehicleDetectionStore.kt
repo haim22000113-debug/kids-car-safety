@@ -40,6 +40,7 @@ object VehicleDetectionStore {
    * clearEvent - הוא קיים כדי לזהות מעבר ישן שגוגל שולחת שוב.
    */
   private const val KEY_LAST_TRANSITION_AT = "last_transition_at"
+  private const val KEY_LAST_TRANSITION_TYPE = "last_transition_type"
 
   const val EVENT_ENTER = "ENTER_VEHICLE"
   const val EVENT_EXIT = "EXIT_VEHICLE"
@@ -262,6 +263,12 @@ object VehicleDetectionStore {
   fun getLastEnterAt(context: Context): Long = prefs(context).getLong(KEY_LAST_ENTER_AT, 0L)
 
   fun getLastTransitionAt(context: Context): Long = prefs(context).getLong(KEY_LAST_TRANSITION_AT, 0L)
+
+  /** סוג המעבר האחרון שהתקבל (כניסה/יציאה). ראה הבדיקה של מעבר ישן במקלט. */
+  fun setLastTransitionType(context: Context, type: Int) {
+    prefs(context).edit().putInt(KEY_LAST_TRANSITION_TYPE, type).commit()
+  }
+  fun getLastTransitionType(context: Context): Int = prefs(context).getInt(KEY_LAST_TRANSITION_TYPE, -1)
 
   fun setLastTransitionAt(context: Context, at: Long) {
     prefs(context).edit().putLong(KEY_LAST_TRANSITION_AT, at).commit()

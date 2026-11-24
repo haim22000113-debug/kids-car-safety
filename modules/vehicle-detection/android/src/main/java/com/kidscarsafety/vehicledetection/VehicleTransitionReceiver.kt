@@ -53,7 +53,9 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
     if (!ActivityTransitionResult.hasResult(intent)) return
     val result = ActivityTransitionResult.extractResult(intent) ?: return
 
-    for (event in result.transitionEvents) {
+    // לפי סדר ההתרחשות, לא לפי הסדר שגוגל שלחה. בדיקת שטח (24.11): כניסה
+    // ויציאה הגיעו באותה הודעה, והיציאה טופלה ראשונה.
+    for (event in result.transitionEvents.sortedBy { it.elapsedRealTimeNanos }) {
       // כמה שניות עברו מהרגע שהמעבר קרה בפועל ועד שגוגל מסרה אותו לנו.
       // זה המספר שמבדיל בין "גוגל לא זיהתה" לבין "גוגל זיהתה באיחור".
       val delayMs = (SystemClock.elapsedRealtimeNanos() - event.elapsedRealTimeNanos) / 1_000_000L
@@ -82,12 +84,24 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
       // אחרון" בעתיד וחוסם כל יציאה מרכב אחריו. יציאה שהוחמצה מסוכנת
       // הרבה יותר מכניסה כפולה, ולכן ערך מהעתיד לא נחשב.
       val lastAt = VehicleDetectionStore.getLastTransitionAt(context).let { if (it > nowMs) 0L else it }
-      if (happenedAt <= lastAt + SAME_TRANSITION_TOLERANCE_MS) {
-        val type = if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) "ENTER" else "EXIT"
-        VehicleDetectionStore.appendHistory(context, "STALE", "$type delay=${delaySec}s")
+      val type = event.transitionType
+      /**
+       * ישן = קרה לפני המעבר האחרון, או באותו רגע ומאותו סוג (אותו מעבר שנשלח
+       * שוב). בדיקת שטח (24.11): גוגל שלחה כניסה ויציאה באותה שנייה. הכניסה
+       * נזרקה כ"ישנה" כי הייתה בתוך מרווח הסובלנות של היציאה - וזמן הכניסה
+       * לרכב לא נשמר. יציאה אמיתית בהמשך אותה נסיעה, בתוך חצי שעה מ"ראיתי"
+       * קודם, הייתה נחשבת "כבר אושרה" - ואזהרה אמיתית לא הייתה יוצאת.
+       */
+      val isStale = happenedAt < lastAt - SAME_TRANSITION_TOLERANCE_MS ||
+        (happenedAt <= lastAt + SAME_TRANSITION_TOLERANCE_MS &&
+          type == VehicleDetectionStore.getLastTransitionType(context))
+      if (isStale) {
+        val label = if (type == ActivityTransition.ACTIVITY_TRANSITION_ENTER) "ENTER" else "EXIT"
+        VehicleDetectionStore.appendHistory(context, "STALE", "$label delay=${delaySec}s")
         continue
       }
-      VehicleDetectionStore.setLastTransitionAt(context, happenedAt)
+      VehicleDetectionStore.setLastTransitionAt(context, maxOf(happenedAt, lastAt))
+      VehicleDetectionStore.setLastTransitionType(context, type)
 
       when (event.transitionType) {
         ActivityTransition.ACTIVITY_TRANSITION_ENTER -> {
