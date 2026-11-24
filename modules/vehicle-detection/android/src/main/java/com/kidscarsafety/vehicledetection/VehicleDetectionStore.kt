@@ -18,6 +18,11 @@ object VehicleDetectionStore {
   private const val KEY_LAST_EVENT = "last_event"
   private const val KEY_LAST_EVENT_AT = "last_event_at"
   private const val KEY_TRACKING = "tracking_enabled"
+  /**
+   * ההורה רוצה הגנה (הדליק אותה ולא כיבה). שונה מ-KEY_TRACKING, שאומר אם הרישום
+   * מול גוגל הצליח - כשהרישום נופל, ההורה עדיין רוצה הגנה, ובדיוק אז צריך להודיע לו.
+   */
+  private const val KEY_PROTECTION_WANTED = "protection_wanted"
 
   /**
    * מתי זוהתה הכניסה לרכב, בנפרד מהאירוע האחרון.
@@ -276,4 +281,9 @@ object VehicleDetectionStore {
   }
 
   fun isTracking(context: Context): Boolean = prefs(context).getBoolean(KEY_TRACKING, false)
+
+  fun setProtectionWanted(context: Context, wanted: Boolean) {
+    prefs(context).edit().putBoolean(KEY_PROTECTION_WANTED, wanted).apply()
+  }
+  fun isProtectionWanted(context: Context): Boolean = prefs(context).getBoolean(KEY_PROTECTION_WANTED, false)
 }

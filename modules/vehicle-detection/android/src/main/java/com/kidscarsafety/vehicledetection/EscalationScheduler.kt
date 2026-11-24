@@ -14,6 +14,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.telephony.TelephonyManager
@@ -49,6 +51,9 @@ object EscalationScheduler {
   const val ACTION_URGENT = "com.kidscarsafety.vehicledetection.ESCALATION_URGENT"
 
   const val NOTIFICATION_ID = 4712
+  private const val TEST_NOTIFICATION_ID = 4714
+  /** כמה זמן עוצמת האזעקות נשארת על מקסימום בבדיקה - קצת יותר מאורך הצליל. */
+  private const val TEST_VOLUME_HOLD_MS = 14_000L
   private const val CHANNEL_ID = "escalation-v1"
 
   private const val RC_COUNTDOWN = 101
@@ -358,6 +363,68 @@ object EscalationScheduler {
       // לא קריטי.
     }
     VehicleDetectionStore.setSavedAlarmVolume(context, -1)
+  }
+
+  /**
+   * "בדוק את ההגנה" (בקשת הבעלים, 24.11): מצלצל את האזעקה האמיתית, באותו ערוץ
+   * ובאותה עוצמה כמו באזעקה אמיתית, ומחזיר מה יכול לחסום אותה. בלי שיחה ובלי
+   * לגעת במצב ההסלמה. הורה ששמע את האזעקה פעם אחת סומך עליה - ומגלה מראש
+   * אם ההתראות חסומות או שהעוצמה מושתקת.
+   */
+  fun runTest(context: Context): Map<String, Any> {
+    ensureChannel(context)
+    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    var channelBlocked = false
+    var dndOn = false
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      val importance = nm.getNotificationChannel(CHANNEL_ID)?.importance ?: NotificationManager.IMPORTANCE_HIGH
+      channelBlocked = importance < NotificationManager.IMPORTANCE_DEFAULT
+      dndOn = nm.currentInterruptionFilter > NotificationManager.INTERRUPTION_FILTER_ALL
+    }
+
+    val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+    val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
+    try {
+      if (before < max) {
+        am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+        Handler(Looper.getMainLooper()).postDelayed({
+          try {
+            am.setStreamVolume(AudioManager.STREAM_ALARM, before, 0)
+          } catch (e: Exception) {
+            // לא קריטי.
+          }
+        }, TEST_VOLUME_HOLD_MS)
+      }
+    } catch (e: Exception) {
+      // "נא לא להפריע" יכול לחסום שינוי עוצמה - הבדיקה תראה את זה.
+    }
+
+    val body = "זו רק בדיקה, אין שום דבר לעשות. כך תישמע האזעקה אם לא תאשר שראית את ההתראה אחרי יציאה מהרכב."
+    val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+      .setSmallIcon(smallIcon(context))
+      .setContentTitle("בדיקה: כך תישמע האזעקה")
+      .setContentText(body)
+      .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+      .setPriority(NotificationCompat.PRIORITY_MAX)
+      .setCategory(NotificationCompat.CATEGORY_ALARM)
+      .setAutoCancel(true)
+    try {
+      NotificationManagerCompat.from(context).notify(TEST_NOTIFICATION_ID, builder.build())
+    } catch (e: SecurityException) {
+      // notificationsEnabled כבר יגיד false.
+    }
+    VehicleDetectionStore.appendHistory(context, "TEST_ALARM")
+
+    val result: Map<String, Any> = mapOf(
+      "notificationsEnabled" to notificationsEnabled,
+      "channelBlocked" to channelBlocked,
+      "dndOn" to dndOn,
+      "alarmVolumeBefore" to before,
+      "alarmVolumeMax" to max
+    )
+    return result
   }
 
   // ---------- התראות ----------

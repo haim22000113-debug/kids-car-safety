@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, Share } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { FormScreen } from '../../src/components/FormScreen';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
+import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { AUTO_CALL_SUPPORTED } from '../../src/content/autoCall';
 import { UserStorage } from '../../src/storage';
 import { trackEvent } from '../../src/analytics/analyticsService';
 import { AnalyticsEvent } from '../../src/analytics/events';
 import { syncNativeConfig } from '../../src/services/protectionService';
+import { buildContactBriefing } from '../../src/content/contactBriefing';
 
 // Emergency Contact (סעיף 15) - נגיש גם מ-Onboarding וגם מ-Settings.
 export default function EmergencyContact() {
@@ -20,6 +22,8 @@ export default function EmergencyContact() {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** אחרי שמירה: מציעים לשלוח לאיש הקשר הסבר מה פירוש שיחה מהאפליקציה. */
+  const [briefing, setBriefing] = useState<string | null>(null);
 
   useEffect(() => {
     // כשמגיעים מ-Settings (לא מ-Onboarding) - טוענים איש קשר קיים אם יש.
@@ -50,12 +54,55 @@ export default function EmergencyContact() {
     // בלי זה הצד הנייטיב היה מתקשר למספר הישן, או לאף אחד.
     await syncNativeConfig();
 
+    const user = await UserStorage.getUser();
+    setBriefing(buildContactBriefing(trimmedName, user?.name ?? ''));
+    setSaving(false);
+  };
+
+  const finish = () => {
     if (fromOnboarding) {
       router.replace('/home');
     } else {
       router.back();
     }
   };
+
+  /**
+   * שיחה מהאפליקציה מגיעה לאיש הקשר כשיחה שקטה מהמספר של ההורה. בלי הסבר
+   * מראש הוא עלול לחשוב שזו טעות ולנתק. השיתוף פותח את חלון השיתוף של
+   * הטלפון (וואטסאפ, SMS...) - בלי הרשאות ובלי שהאפליקציה שולחת בעצמה.
+   */
+  const sendBriefing = async () => {
+    if (!briefing) return;
+    try {
+      await Share.share({ message: briefing });
+    } catch {
+      // ההורה ביטל את השיתוף - לא קריטי.
+    }
+  };
+
+  if (briefing) {
+    return (
+      <FormScreen
+        showBack={false}
+        backFallback="/settings"
+        footer={
+          <>
+            <Button title={`שלח הודעה ל${name.trim()}`} onPress={sendBriefing} />
+            <Button title="המשך" variant="ghost" onPress={finish} style={styles.skipButton} />
+          </>
+        }
+      >
+        <Text style={styles.title}>כדאי לספר ל{name.trim()}</Text>
+        <Text style={styles.subtitle}>
+          {AUTO_CALL_SUPPORTED
+            ? 'אם האפליקציה תתקשר, השיחה תגיע מהמספר שלך ואף אחד לא ידבר. שלח הודעה קצרה שמסבירה מה לעשות אם זה קורה:'
+            : 'שלח הודעה קצרה שמסבירה למה אולי תתקשר מתוך האפליקציה:'}
+        </Text>
+        <Text style={styles.preview}>{briefing}</Text>
+      </FormScreen>
+    );
+  }
 
   const onSkip = () => {
     router.replace('/home');
@@ -118,6 +165,17 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: theme.spacing.xl,
+  },
+  preview: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.textPrimary,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    lineHeight: 22,
+    textAlign: TEXT_RIGHT,
   },
   skipButton: {
     marginTop: theme.spacing.sm,

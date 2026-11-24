@@ -69,6 +69,9 @@ export const NATIVE_LABELS: Record<string, string> = {
   CALL_PLACED: 'יצאה שיחה לאיש הקשר',
   CALL_FAILED: 'השיחה נכשלה',
   CALL_NO_PERMISSION: 'אין הרשאה לשיחה',
+  HEALTH_PROBLEM: 'בדיקה יומית: ההגנה לא פועלת במלואה, נשלחה התראה',
+  HEALTH_REREGISTER: 'בדיקה יומית: זיהוי התנועה נרשם מחדש',
+  TEST_ALARM: 'בדיקת אזעקה (מכפתור "בדוק את ההגנה")',
   ALARM_VOLUME_MAX: 'עוצמת האזעקות הוגברה למקסימום',
   LOW_BATTERY: 'סוללה חלשה בתחילת נסיעה, נשלחה התראה',
   CALL_NO_SIGNAL: 'אין קליטה, השיחה לא יצאה. ניסיון נוסף בעוד דקה',
@@ -96,6 +99,12 @@ const WORDS: Record<string, string> = {
   ENTER: 'כניסה,',
   EXIT: 'יציאה,',
   walking: 'הליכה,',
+  // קודי הבדיקה היומית (HEALTH_PROBLEM).
+  MOTION: 'זיהוי תנועה',
+  LOCATION: 'מיקום',
+  BG_LOCATION: 'מיקום ברקע',
+  NOTIFICATIONS: 'התראות',
+  BATTERY: 'פעולה ברקע',
   // האזעקה והשיחה תוזמנו "בערך" - חסר אישור "התראות ותזכורות".
   inexact: '(זמן משוער, חסר אישור "התראות ותזכורות")',
   on_foot: 'ברגל,',

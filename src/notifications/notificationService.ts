@@ -473,3 +473,26 @@ export async function cancelAllNotifications(): Promise<void> {
     // לא קריטי.
   }
 }
+
+/**
+ * "בדוק את ההגנה" כשאין מודול נייטיב (אייפון): אזעקת בדיקה מיידית, באותו
+ * ערוץ ובאותם שדות כמו אזעקה אמיתית. מחזיר false כשההתראות חסומות.
+ */
+export async function sendTestAlarmNotification(): Promise<boolean> {
+  if (!(await hasNotificationPermission())) return false;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'בדיקה: כך תישמע האזעקה',
+        body: 'זו רק בדיקה, אין שום דבר לעשות.',
+        sound: true,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        ...iosAlertFields(true),
+      },
+      trigger: Platform.OS === 'android' ? { channelId: WARNING_CHANNEL_URGENT } : null,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

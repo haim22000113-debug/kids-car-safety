@@ -40,6 +40,16 @@ interface VehicleDetectionNativeModule extends NativeModule {
   canScheduleExactAlarms(): boolean;
   getLastAckAt(): number;
   setLowBatteryPercent(percent: number): void;
+  testAlarm(): AlarmTestResult;
+}
+
+/** תוצאת "בדוק את ההגנה" מהצד הנייטיב. */
+export interface AlarmTestResult {
+  notificationsEnabled: boolean;
+  channelBlocked: boolean;
+  dndOn: boolean;
+  alarmVolumeBefore: number;
+  alarmVolumeMax: number;
 }
 
 /** רשומה ביומן האבחון הנייטיב. אין בה מיקום - רק סוג, שעה ופרטים טכניים. */
@@ -262,4 +272,13 @@ export function getLastAckAt(): number {
 /** מתחת לאחוז הזה, בתחילת נסיעה ובלי מטען, ההורה מקבל התראה עדינה. */
 export function setLowBatteryPercent(percent: number): void {
   safe(() => native!.setLowBatteryPercent(percent), undefined);
+}
+
+/**
+ * מצלצל את האזעקה האמיתית (בלי שיחה) ומחזיר מה יכול לחסום אותה.
+ * null כשהמודול לא קיים (אייפון) - שם הבדיקה נעשית דרך expo-notifications.
+ */
+export function testAlarm(): AlarmTestResult | null {
+  if (!isSupported()) return null;
+  return safe(() => native!.testAlarm(), null);
 }

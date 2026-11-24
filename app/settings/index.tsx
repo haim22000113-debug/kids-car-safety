@@ -16,6 +16,7 @@ import { User, isAutoProtectionEnabled } from '../../src/models';
 import { getTripActiveReminderMinutes } from '../../src/notifications/reminderLogic';
 import { cancelAllNotifications } from '../../src/notifications/notificationService';
 import * as protectionService from '../../src/services/protectionService';
+import { runProtectionTest, TestItem, TestAction } from '../../src/services/protectionTest';
 import {
   DISCLAIMER_INTRO,
   DISCLAIMER_POINTS,
@@ -42,6 +43,8 @@ interface ChildDraft {
 export default function Settings() {
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [testItems, setTestItems] = useState<TestItem[] | null>(null);
   const [children, setChildren] = useState<ChildDraft[]>([]);
   const [firstMin, setFirstMin] = useState('0');
   const [secondMin, setSecondMin] = useState('2');
@@ -217,6 +220,22 @@ export default function Settings() {
     soundEnabled !== reminders.soundEnabled ||
     autoProtection !== isAutoProtectionEnabled(user.settings);
 
+  const onTestProtection = async () => {
+    setTesting(true);
+    try {
+      setTestItems(await runProtectionTest());
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const onTestAction = (action: TestAction) => {
+    if (action === 'permissions') router.push('/permissions');
+    else if (action === 'emergencyContact') router.push('/settings/emergency-contact');
+    else if (action === 'notificationSettings') void Linking.openSettings();
+    // 'settings' - המתג "הגנה אוטומטית" נמצא באותו מסך, ממש מתחת.
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScreenHeader title="הגדרות" fallback="/home" />
@@ -308,6 +327,26 @@ export default function Settings() {
             <Text style={styles.switchLabel}>צלילי התראות</Text>
             <Switch value={soundEnabled} onValueChange={setSoundEnabled} />
           </View>
+        </Card>
+
+        <Card title="🔔 בדוק את ההגנה">
+          <Text style={styles.infoText}>
+            מצלצל את האזעקה האמיתית (בלי להתקשר לאף אחד) ובודק שאין שום דבר בטלפון שחוסם את האזהרות.
+          </Text>
+          <Button title="בדוק עכשיו" onPress={onTestProtection} loading={testing} />
+          {testItems
+            ? testItems.map((item, i) => (
+                <View key={i} style={item.ok ? styles.testOk : styles.warningBox}>
+                  <Text style={item.ok ? styles.testOkText : styles.warningText}>
+                    {item.ok ? '✓ ' : '⚠️ '}
+                    {item.text}
+                  </Text>
+                  {item.action ? (
+                    <Button title="תקן" variant="ghost" onPress={() => onTestAction(item.action!)} />
+                  ) : null}
+                </View>
+              ))
+            : null}
         </Card>
 
         <Card title="🛡️ הגנה והרשאות">
@@ -478,6 +517,18 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: theme.typography.body,
     color: theme.colors.textPrimary,
+  },
+  testOk: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  testOkText: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.success,
+    textAlign: TEXT_RIGHT,
+    lineHeight: 22,
   },
   warningBox: {
     backgroundColor: '#FFF3E0',

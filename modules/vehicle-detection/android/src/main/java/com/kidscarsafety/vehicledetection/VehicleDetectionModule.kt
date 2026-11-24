@@ -27,6 +27,8 @@ class VehicleDetectionModule : Module() {
     Name("VehicleDetection")
 
     AsyncFunction("startTracking") { promise: Promise ->
+      VehicleDetectionStore.setProtectionWanted(context, true)
+      HealthCheck.schedule(context)
       VehicleTracking.start(context) { ok, error ->
         if (error != null) {
           promise.reject("ERR_START_TRACKING", error.message ?: "unknown error", error)
@@ -37,6 +39,8 @@ class VehicleDetectionModule : Module() {
     }
 
     AsyncFunction("stopTracking") { promise: Promise ->
+      VehicleDetectionStore.setProtectionWanted(context, false)
+      HealthCheck.cancel(context)
       VehicleTracking.stop(context) { ok, error ->
         if (error != null) {
           promise.reject("ERR_STOP_TRACKING", error.message ?: "unknown error", error)
@@ -101,6 +105,11 @@ class VehicleDetectionModule : Module() {
 
     Function("setLowBatteryPercent") { percent: Double ->
       VehicleDetectionStore.setLowBatteryPercent(context, percent.toInt())
+    }
+
+    /** "בדוק את ההגנה": מצלצל את האזעקה האמיתית ומחזיר מה יכול לחסום אותה. */
+    Function("testAlarm") {
+      EscalationScheduler.runTest(context)
     }
 
     Function("scheduleEscalation") { callAtMs: Double ->

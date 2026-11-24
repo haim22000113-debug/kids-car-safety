@@ -78,6 +78,11 @@
       android:name="com.kidscarsafety.vehicledetection.EscalationReceiver"
       android:exported="false" />
 
+    <!-- הבדיקה היומית שההגנה באמת פועלת. ראה HealthCheck. -->
+    <receiver
+      android:name="com.kidscarsafety.vehicledetection.HealthCheckReceiver"
+      android:exported="false" />
+
     <!--
       מסך שקוף שלא נראה: לחיצה על התראת האזהרה עוברת דרכו, נרשמת כ"ראיתי",
       והוא פותח את האפליקציה ונסגר. ראה AcknowledgeActivity.

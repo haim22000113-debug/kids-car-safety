@@ -29,6 +29,8 @@ class BootReceiver : BroadcastReceiver() {
 
     if (!isBootAction) return
     VehicleDetectionStore.appendHistory(context, "BOOT", action.substringAfterLast('.'))
+    // אחרי אתחול כל המעוררים נמחקים, גם של הבדיקה היומית.
+    if (VehicleDetectionStore.isProtectionWanted(context)) HealthCheck.schedule(context)
     if (!VehicleDetectionStore.isTracking(context)) return
 
     // רישום מחדש. אם ההרשאה נשללה בינתיים זה ייכשל בשקט, וה-JavaScript
