@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -167,6 +168,7 @@ object EscalationScheduler {
   fun postUrgent(context: Context) {
     if (VehicleDetectionStore.getEscalationState(context) != VehicleDetectionStore.ESC_SCHEDULED) return
     ensureChannel(context)
+    boostAlarmVolume(context)
 
     val name = VehicleDetectionStore.getContactName(context).ifBlank { "איש הקשר" }
     val hasContact = VehicleDetectionStore.getContactPhone(context).isNotBlank()
@@ -203,6 +205,7 @@ object EscalationScheduler {
     val nm = NotificationManagerCompat.from(context)
     nm.cancel(NOTIFICATION_ID)
     nm.cancel(VehicleTransitionReceiver.NOTIFICATION_ID)
+    restoreAlarmVolume(context)
 
     val state = VehicleDetectionStore.getEscalationState(context)
     if (state != VehicleDetectionStore.ESC_CALLED) {
@@ -226,6 +229,7 @@ object EscalationScheduler {
       // מצב סופי ולא IDLE: עם IDLE, תזמון מאוחר מה-JS לאותו אירוע היה
       // מתחיל את כל השרשרת מחדש, עם אזעקה שנייה.
       VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_ALERTED)
+      boostAlarmVolume(context)
       postUrgentNoContact(context)
       VehicleDetectionStore.appendHistory(context, "ESC_NO_CONTACT")
       return
@@ -235,6 +239,7 @@ object EscalationScheduler {
     VehicleDetectionStore.setCallAt(context, callAt)
     VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_COUNTDOWN)
 
+    boostAlarmVolume(context)
     postCountdownNotification(context)
     setAlarm(context, callAt, broadcast(context, ACTION_CALL, RC_CALL))
     VehicleDetectionStore.appendHistory(context, "ESC_COUNTDOWN")
@@ -254,6 +259,7 @@ object EscalationScheduler {
       VehicleDetectionStore.setCallRetries(context, tries)
       if (tries <= CALL_RETRY_MAX) {
         VehicleDetectionStore.appendHistory(context, "CALL_NO_SIGNAL", "try=$tries")
+        boostAlarmVolume(context)
         postNoSignal(context)
         setAlarm(
           context, System.currentTimeMillis() + CALL_RETRY_INTERVAL_MS, broadcast(context, ACTION_CALL, RC_CALL)
@@ -264,6 +270,7 @@ object EscalationScheduler {
     }
     // מסמנים לפני החיוג, כדי שהמסלול השני (מסך/מעורר) לא יחייג שוב.
     VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_CALLED)
+    restoreAlarmVolume(context)
     cancelAlarm(context, broadcast(context, ACTION_CALL, RC_CALL))
     NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
 
@@ -313,6 +320,44 @@ object EscalationScheduler {
     } catch (e: Exception) {
       true
     }
+  }
+
+  /**
+   * עוצמת האזעקות של הטלפון למקסימום, בזמן שהאזעקה שלנו מצלצלת.
+   *
+   * בקשת הבעלים (24.11): "בקושי שומעים". הצליל שלנו מתנגן בערוץ האזעקות
+   * (USAGE_ALARM), ולכן העוצמה שלו היא עוצמת האזעקות שההורה כיוון - ולפעמים
+   * היא נמוכה, כי מישהו הנמיך את השעון המעורר. הורה שלא שומע את האזעקה הוא
+   * בדיוק המקרה שהמוצר קיים בשבילו. העוצמה הקודמת נשמרת ומוחזרת ב"ראיתי"
+   * או כשהשיחה יוצאת.
+   */
+  private fun boostAlarmVolume(context: Context) {
+    try {
+      val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+      val current = am.getStreamVolume(AudioManager.STREAM_ALARM)
+      if (VehicleDetectionStore.getSavedAlarmVolume(context) < 0) {
+        VehicleDetectionStore.setSavedAlarmVolume(context, current)
+      }
+      if (current < max) {
+        am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+        VehicleDetectionStore.appendHistory(context, "ALARM_VOLUME_MAX", "from=$current/$max")
+      }
+    } catch (e: Exception) {
+      // "נא לא להפריע" יכול לחסום שינוי עוצמה. האזעקה עדיין מצלצלת בעוצמה הקיימת.
+    }
+  }
+
+  private fun restoreAlarmVolume(context: Context) {
+    val saved = VehicleDetectionStore.getSavedAlarmVolume(context)
+    if (saved < 0) return
+    try {
+      val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      am.setStreamVolume(AudioManager.STREAM_ALARM, saved, 0)
+    } catch (e: Exception) {
+      // לא קריטי.
+    }
+    VehicleDetectionStore.setSavedAlarmVolume(context, -1)
   }
 
   // ---------- התראות ----------

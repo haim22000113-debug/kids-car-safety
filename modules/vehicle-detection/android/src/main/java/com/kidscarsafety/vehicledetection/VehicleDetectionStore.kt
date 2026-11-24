@@ -101,6 +101,7 @@ object VehicleDetectionStore {
   private const val KEY_ESC_CALL_AT = "escalation_call_at"
   private const val KEY_CALL_RETRIES = "call_retries"
   private const val KEY_LOW_BATTERY_PERCENT = "low_battery_percent"
+  private const val KEY_SAVED_ALARM_VOLUME = "saved_alarm_volume"
   private const val KEY_CONFIRMED_AT = "native_confirmed_at"
   private const val KEY_SUPPRESS_UNTIL = "suppress_until"
   private const val KEY_SUPPRESS_NEXT = "suppress_next"
@@ -177,6 +178,12 @@ object VehicleDetectionStore {
     prefs(context).edit().putLong(KEY_ESC_CALL_AT, at).commit()
   }
   fun getCallAt(context: Context): Long = prefs(context).getLong(KEY_ESC_CALL_AT, 0L)
+
+  /** עוצמת האזעקות של ההורה לפני שהגברנו אותה, או -1. ראה boostAlarmVolume. */
+  fun setSavedAlarmVolume(context: Context, volume: Int) {
+    prefs(context).edit().putInt(KEY_SAVED_ALARM_VOLUME, volume).commit()
+  }
+  fun getSavedAlarmVolume(context: Context): Int = prefs(context).getInt(KEY_SAVED_ALARM_VOLUME, -1)
 
   /** ברירת המחדל זהה ל-LOW_BATTERY_WARNING_PERCENT ב-config.ts. */
   fun setLowBatteryPercent(context: Context, percent: Int) {
