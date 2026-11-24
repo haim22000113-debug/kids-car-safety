@@ -59,9 +59,17 @@ export default function EmergencyContact() {
     setSaving(false);
   };
 
+  /**
+   * בהגדרה הראשונית ממשיכים להרשאות המודרכות, ומשם למסך הבית.
+   * קודם ההגדרה נגמרה כאן, והורה חדש הגיע למסך הבית בלי שאף אחד ביקש
+   * ממנו הרשאות - רק קישור קטן "הגדר הרשאות" בכרטיס ההגנה.
+   */
+  const toPermissions = () =>
+    router.replace({ pathname: '/permissions', params: { fromOnboarding: '1' } });
+
   const finish = () => {
     if (fromOnboarding) {
-      router.replace('/home');
+      toPermissions();
     } else {
       router.back();
     }
@@ -105,7 +113,7 @@ export default function EmergencyContact() {
   }
 
   const onSkip = () => {
-    router.replace('/home');
+    toPermissions();
   };
 
   return (

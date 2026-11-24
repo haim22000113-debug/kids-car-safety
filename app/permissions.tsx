@@ -12,6 +12,8 @@ import { TEXT_RIGHT } from '../src/i18n/rtl';
 import * as locationService from '../src/services/locationService';
 import * as vehicleDetection from '../modules/vehicle-detection';
 import * as protectionService from '../src/services/protectionService';
+import { runProtectionTest, TestItem } from '../src/services/protectionTest';
+import { currentStepIndex } from '../src/services/permissionSteps';
 import {
   requestNotificationPermission,
   hasNotificationPermission,
@@ -38,6 +40,8 @@ export default function Permissions() {
   const [exactAlarm, setExactAlarm] = useState(true);
   /** איזו בקשה רצה כרגע, או null. לא בוליאני אחד משותף - ראה הערה למטה. */
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  /** עד הבדיקה הראשונה כל ההרשאות נראות "חסרות". המסלול המודרך מחכה לה. */
+  const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     const snapshot = await locationService.getPermissions();
@@ -59,6 +63,7 @@ export default function Permissions() {
       setBattery(vehicleDetection.isIgnoringBatteryOptimizations());
       setExactAlarm(vehicleDetection.canScheduleExactAlarms());
     }
+    setLoaded(true);
     // הרשאה שאושרה עכשיו צריכה להפעיל את המעקב עכשיו, לא בפתיחה הבאה של
     // מסך הבית. ראה ensureProtectionRunning.
     await protectionService.ensureProtectionRunning();
@@ -151,8 +156,110 @@ export default function Permissions() {
   };
 
   const isSamsung = (Device.manufacturer ?? '').toLowerCase().includes('samsung');
+  const isAndroid = Platform.OS === 'android';
 
   const done = () => router.replace(fromOnboarding ? '/home' : '/settings');
+
+  /**
+   * כל ההרשאות כרשימה אחת, לשני התצוגות: הרשימה (מההגדרות) והמסלול
+   * המודרך (בהגדרה הראשונית). הסדר חשוב: מיקום ברקע אפשר לבקש רק אחרי מיקום.
+   */
+  const steps: Step[] = [
+    {
+      key: 'location',
+      icon: '📍',
+      title: 'מיקום',
+      granted: foreground,
+      description: 'מאפשר לזהות מתי נסיעה מתחילה ומתי היא נעצרת.',
+      actionTitle: 'אפשר מיקום',
+      onAction: askLocation,
+    },
+    {
+      key: 'background',
+      icon: '🌙',
+      title: 'מיקום ברקע',
+      granted: background,
+      description: 'בלעדיו ההגנה תעבוד רק כשהאפליקציה פתוחה על המסך.',
+      hint:
+        needsSettings && !background
+          ? 'במכשיר שלך צריך לבחור "אפשר תמיד" בהגדרות המערכת. אנדרואיד לא מאפשר לבקש את זה מתוך האפליקציה.'
+          : undefined,
+      actionTitle: needsSettings ? 'פתח הגדרות' : 'אפשר מיקום ברקע',
+      onAction: needsSettings ? () => void Linking.openSettings() : askBackground,
+    },
+    {
+      key: 'notifications',
+      icon: '🔔',
+      title: 'התראות',
+      granted: notifications,
+      description: 'בלעדיהן המערכת יכולה לזהות שיצאת מהרכב, ופשוט לא להגיע אליך.',
+      actionTitle: 'אפשר התראות',
+      onAction: askNotifications,
+    },
+    ...(vehicleDetection.isSupported()
+      ? [
+          {
+            key: 'motion',
+            icon: '🚗',
+            title: 'זיהוי תנועה',
+            granted: motion,
+            description: 'מזהה כניסה ויציאה מהרכב בלי להשתמש ב-GPS. חוסך סוללה ומדויק יותר.',
+            actionTitle: 'אפשר זיהוי תנועה',
+            onAction: askMotion,
+          },
+        ]
+      : []),
+    ...(isAndroid
+      ? [
+          {
+            key: 'call',
+            icon: '📞',
+            title: 'חיוג לאיש קשר',
+            granted: call,
+            description:
+              'אם לא תאשר שראית את ההתראות תוך ארבע דקות, האפליקציה תתקשר לאיש הקשר שלך. בלי ההרשאה היא תוכל רק לפתוח את מסך החיוג.',
+            actionTitle: 'אפשר חיוג',
+            onAction: askCall,
+          },
+          {
+            key: 'battery',
+            icon: '🔋',
+            title: 'פעולה ברקע ללא הגבלה',
+            granted: battery,
+            description:
+              'חיסכון הסוללה של הטלפון עלול להרדים את האפליקציה ולעכב את האזהרה בדקות ארוכות. אישור אחד מונע את זה. ההשפעה על הסוללה קטנה.',
+            hint: isSamsung
+              ? 'בסמסונג כדאי לוודא גם שהאפליקציה לא מופיעה ברשימת "אפליקציות במצב שינה" (הגדרות ← טיפול בסוללה ובמכשיר ← סוללה ← הגבלות שימוש ברקע).'
+              : undefined,
+            hintAfterAction: true,
+            actionTitle: 'אפשר',
+            onAction: askBattery,
+          },
+          {
+            key: 'exactAlarm',
+            icon: '⏰',
+            title: 'אזעקה בזמן מדויק',
+            granted: exactAlarm,
+            onlyWhenMissing: true,
+            description:
+              'בלי האישור הזה הטלפון רשאי לאחר את האזעקה ואת השיחה לאיש הקשר. בהגדרות שייפתחו, הדלק את "התראות ותזכורות".',
+            actionTitle: 'פתח הגדרות',
+            onAction: openExactAlarmSettings,
+          },
+          {
+            key: 'fullScreen',
+            icon: '📱',
+            title: 'מסך מלא מעל הנעילה',
+            granted: fullScreen,
+            onlyWhenMissing: true,
+            description:
+              'מאפשר להציג את הספירה לאחור לפני השיחה גם כשהטלפון נעול, כמו שעון מעורר. צריך להפעיל ידנית בהגדרות.',
+            actionTitle: 'פתח הגדרות',
+            onAction: openFullScreenSettings,
+          },
+        ]
+      : []),
+  ];
 
   /**
    * "הכל תקין" חייב לכלול התראות.
@@ -162,13 +269,19 @@ export default function Permissions() {
    * המערכת יכולה לזהות הכל מצוין ופשוט לא להגיע אליו. גם זיהוי התנועה
    * נכלל, כי באנדרואיד הוא הסיגנל הראשי.
    */
-  const motionOk = !vehicleDetection.isSupported() || motion;
-  const callOk = Platform.OS !== 'android' || call;
-  const allGood = foreground && background && notifications && motionOk && callOk && fullScreen && battery && exactAlarm;
+  const allGood = steps.every((s) => s.granted);
+
+  if (fromOnboarding) {
+    return loaded ? (
+      <PermissionWizard steps={steps} busyAction={busyAction} allGood={allGood} onDone={done} />
+    ) : (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']} />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {!fromOnboarding ? <ScreenHeader fallback="/settings" /> : null}
+      <ScreenHeader fallback="/settings" />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>כדי שההגנה תעבוד</Text>
         <Text style={styles.intro}>
@@ -176,119 +289,11 @@ export default function Permissions() {
           במכשיר שלך בלבד ואינו נשלח לשום מקום.
         </Text>
 
-        <Item
-          title="מיקום"
-          granted={foreground}
-          description="מאפשר לזהות מתי נסיעה מתחילה ומתי היא נעצרת."
-          action={<Button title="אפשר מיקום" onPress={askLocation} loading={busyAction === 'location'} />}
-        />
-
-        <Item
-          title="מיקום ברקע"
-          granted={background}
-          description="בלעדיו ההגנה תעבוד רק כשהאפליקציה פתוחה על המסך."
-          action={
-            needsSettings && !background ? (
-              <>
-                <Text style={styles.hint}>
-                  במכשיר שלך צריך לבחור &quot;אפשר תמיד&quot; בהגדרות המערכת — אנדרואיד לא מאפשר
-                  לבקש את זה מתוך האפליקציה.
-                </Text>
-                <Button title="פתח הגדרות" variant="ghost" onPress={() => Linking.openSettings()} />
-              </>
-            ) : (
-              <Button
-                title="אפשר מיקום ברקע"
-                variant="ghost"
-                onPress={askBackground}
-                loading={busyAction === 'background'}
-              />
-            )
-          }
-        />
-
-        <Item
-          title="התראות"
-          granted={notifications}
-          description="בלעדיהן המערכת יכולה לזהות שיצאת מהרכב — ופשוט לא להגיע אליך."
-          action={
-            <Button
-              title="אפשר התראות"
-              variant="ghost"
-              onPress={askNotifications}
-              loading={busyAction === 'notifications'}
-            />
-          }
-        />
-
-        {vehicleDetection.isSupported() ? (
-          <Item
-            title="זיהוי תנועה"
-            granted={motion}
-            description="מזהה כניסה ויציאה מהרכב בלי להשתמש ב-GPS. חוסך סוללה ומדויק יותר."
-            action={
-              <Button
-                title="אפשר זיהוי תנועה"
-                variant="ghost"
-                onPress={askMotion}
-                loading={busyAction === 'motion'}
-              />
-            }
-          />
-        ) : null}
-
-        {Platform.OS === 'android' ? (
-          <Item
-            title="חיוג לאיש קשר"
-            granted={call}
-            description="אם לא תאשר שראית את ההתראות תוך ארבע דקות, האפליקציה תתקשר לאיש הקשר שלך. בלי ההרשאה היא תוכל רק לפתוח את מסך החיוג."
-            action={
-              <Button
-                title="אפשר חיוג"
-                variant="ghost"
-                onPress={askCall}
-                loading={busyAction === 'call'}
-              />
-            }
-          />
-        ) : null}
-
-        {Platform.OS === 'android' ? (
-          <Item
-            title="פעולה ברקע ללא הגבלה"
-            granted={battery}
-            description="חיסכון הסוללה של הטלפון עלול להרדים את האפליקציה ולעכב את האזהרה בדקות ארוכות. אישור אחד מונע את זה. ההשפעה על הסוללה קטנה."
-            action={
-              <>
-                <Button title="אפשר" variant="ghost" onPress={askBattery} />
-                {isSamsung ? (
-                  <Text style={styles.hint}>
-                    בסמסונג כדאי לוודא גם שהאפליקציה לא מופיעה ברשימת &quot;אפליקציות במצב שינה&quot;
-                    (הגדרות ← טיפול בסוללה ובמכשיר ← סוללה ← הגבלות שימוש ברקע).
-                  </Text>
-                ) : null}
-              </>
-            }
-          />
-        ) : null}
-
-        {!exactAlarm ? (
-          <Item
-            title="אזעקה בזמן מדויק"
-            granted={false}
-            description={'בלי האישור הזה הטלפון רשאי לאחר את האזעקה ואת השיחה לאיש הקשר. בהגדרות שייפתחו, הדלק את "התראות ותזכורות".'}
-            action={<Button title="פתח הגדרות" variant="ghost" onPress={openExactAlarmSettings} />}
-          />
-        ) : null}
-
-        {!fullScreen ? (
-          <Item
-            title="מסך מלא מעל הנעילה"
-            granted={false}
-            description="מאפשר להציג את הספירה לאחור לפני השיחה גם כשהטלפון נעול, כמו שעון מעורר. צריך להפעיל ידנית בהגדרות."
-            action={<Button title="פתח הגדרות" variant="ghost" onPress={openFullScreenSettings} />}
-          />
-        ) : null}
+        {steps
+          .filter((s) => !s.onlyWhenMissing || !s.granted)
+          .map((s, i) => (
+            <Item key={s.key} step={s} busy={busyAction === s.key} primary={i === 0} />
+          ))}
 
         {!allGood ? (
           <View style={styles.limitedBox}>
@@ -307,25 +312,150 @@ export default function Permissions() {
   );
 }
 
-function Item({
-  title,
-  description,
-  granted,
-  action,
-}: {
+interface Step {
+  key: string;
+  icon: string;
   title: string;
   description: string;
   granted: boolean;
-  action: React.ReactNode;
+  actionTitle: string;
+  onAction: () => void | Promise<unknown>;
+  hint?: string;
+  /** ההערה מוצגת אחרי הכפתור ולא לפניו (בסמסונג: "וגם תבדוק..."). */
+  hintAfterAction?: boolean;
+  /** ברשימה: מוצג רק כשחסר (רוב הטלפונים מאשרים אותו מראש). */
+  onlyWhenMissing?: boolean;
+}
+
+/**
+ * ההגדרה הראשונית: שלב אחד בכל פעם, עם פס התקדמות.
+ * אישור מעביר לשלב הבא לבד (המסך בודק מחדש כשחוזרים מחלון ההרשאה).
+ * "דלג" לא מסתיר את הבעיה: בסוף מוצגת רשימת מה שחסר.
+ */
+function PermissionWizard({
+  steps,
+  busyAction,
+  allGood,
+  onDone,
+}: {
+  steps: Step[];
+  busyAction: string | null;
+  allGood: boolean;
+  onDone: () => void;
 }) {
+  const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
+  const [testing, setTesting] = useState(false);
+  const [testItems, setTestItems] = useState<TestItem[] | null>(null);
+  const index = currentStepIndex(steps, skipped);
+
+  if (index === -1) {
+    const missing = steps.filter((s) => !s.granted);
+    const problems = testItems?.filter((t) => !t.ok) ?? [];
+    const runTest = async () => {
+      setTesting(true);
+      try {
+        setTestItems(await runProtectionTest());
+      } finally {
+        setTesting(false);
+      }
+    };
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.wizardContent}>
+          <Text style={styles.wizardIcon}>{allGood ? '✅' : '🟡'}</Text>
+          <Text style={styles.title}>{allGood ? 'הכל מוכן!' : 'כמעט מוכן'}</Text>
+          {allGood ? (
+            <Text style={styles.wizardBody}>ההגנה האוטומטית פעילה. אין צורך להפעיל נסיעה בכל פעם.</Text>
+          ) : (
+            <>
+              <Text style={styles.wizardBody}>
+                חסר עדיין: {missing.map((s) => s.title).join(', ')}. בלי זה ההגנה האוטומטית מוגבלת.
+                אפשר להשלים בכל רגע מההגדרות ← הרשאות.
+              </Text>
+              <Button title="חזרה לשלבים שחסרים" variant="ghost" onPress={() => setSkipped(new Set())} />
+            </>
+          )}
+
+          <View style={styles.testBox}>
+            <Text style={styles.testTitle}>רוצה לשמוע איך נשמעת האזעקה?</Text>
+            <Text style={styles.testBody}>
+              כדאי לדעת לזהות אותה. זו בדיקה בלבד: היא לא מתקשרת לאף אחד.
+            </Text>
+            <Button title="🔔 השמע אזעקת בדיקה" variant="ghost" onPress={runTest} loading={testing} />
+            {testItems ? (
+              <Text style={[styles.testResult, problems.length > 0 ? styles.testResultBad : null]}>
+                {problems.length === 0
+                  ? 'הבדיקה עברה. אם שמעת את האזעקה, הכל עובד.'
+                  : `נמצאו ${problems.length} דברים שעלולים לחסום אזהרה: ${problems
+                      .map((p) => p.text)
+                      .join(' ')} פרטים ותיקון: הגדרות ← בדוק את ההגנה.`}
+              </Text>
+            ) : null}
+          </View>
+        </ScrollView>
+        <View style={styles.footer}>
+          <Button title="סיום" onPress={onDone} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const step = steps[index];
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.progressWrap}>
+        <Text style={styles.progressText}>
+          שלב {index + 1} מתוך {steps.length}
+        </Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${(index / steps.length) * 100}%` }]} />
+        </View>
+      </View>
+      <ScrollView contentContainerStyle={styles.wizardContent}>
+        <Text style={styles.wizardIcon}>{step.icon}</Text>
+        <Text style={styles.title}>{step.title}</Text>
+        <Text style={styles.wizardBody}>{step.description}</Text>
+        {index === 0 ? (
+          <Text style={styles.wizardPrivacy}>המיקום נשמר במכשיר שלך בלבד ואינו נשלח לשום מקום.</Text>
+        ) : null}
+        {step.hint ? <Text style={styles.hint}>{step.hint}</Text> : null}
+      </ScrollView>
+      <View style={styles.footer}>
+        <Button title={step.actionTitle} onPress={step.onAction} loading={busyAction === step.key} />
+        <Button
+          title="דלג בינתיים"
+          variant="ghost"
+          onPress={() => setSkipped(new Set([...skipped, step.key]))}
+          style={styles.skipButton}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function Item({ step, busy, primary }: { step: Step; busy: boolean; primary: boolean }) {
+  const hint = step.hint ? <Text style={styles.hint}>{step.hint}</Text> : null;
   return (
     <View style={styles.item}>
       <Text style={styles.itemTitle}>
-        {granted ? '✓ ' : ''}
-        {title}
+        {step.granted ? '✓ ' : ''}
+        {step.title}
       </Text>
-      <Text style={styles.itemDescription}>{description}</Text>
-      {granted ? <Text style={styles.grantedText}>ניתנה</Text> : action}
+      <Text style={styles.itemDescription}>{step.description}</Text>
+      {step.granted ? (
+        <Text style={styles.grantedText}>ניתנה</Text>
+      ) : (
+        <>
+          {step.hintAfterAction ? null : hint}
+          <Button
+            title={step.actionTitle}
+            variant={primary ? 'primary' : 'ghost'}
+            onPress={step.onAction}
+            loading={busy}
+          />
+          {step.hintAfterAction ? hint : null}
+        </>
+      )}
     </View>
   );
 }
@@ -395,4 +525,64 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   footer: { padding: theme.spacing.lg },
+  skipButton: { marginTop: theme.spacing.sm },
+  progressWrap: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg },
+  progressText: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.border,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  progressFill: { height: 6, backgroundColor: theme.colors.primary },
+  wizardContent: { padding: theme.spacing.lg, flexGrow: 1, justifyContent: 'center' },
+  wizardIcon: { fontSize: 64, textAlign: 'center', marginBottom: theme.spacing.md },
+  wizardBody: {
+    fontSize: theme.typography.body,
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: theme.spacing.md,
+  },
+  wizardPrivacy: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  testBox: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+  },
+  testTitle: {
+    fontSize: theme.typography.body,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  testBody: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+  },
+  testResult: {
+    fontSize: theme.typography.caption,
+    color: theme.colors.success,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+    lineHeight: 20,
+  },
+  testResultBad: { color: theme.colors.warning },
 });
