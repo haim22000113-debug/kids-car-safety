@@ -44,8 +44,13 @@
       היה מת יחד עם האפליקציה - ואז ההורה שסוגר אפליקציות לא היה מקבל
       כלום, וזה בדיוק ההורה שהכי צריך את זה.
 
-      exported="true" נדרש כי מי ששולח את השידור הוא Google Play Services,
-      תהליך חיצוני לאפליקציה שלנו.
+      exported="false" בכוונה: גוגל שולחת את האירועים דרך PendingIntent
+      מפורש שהאפליקציה יוצרת (VehicleTracking.pendingIntent), ו-PendingIntent
+      רץ בזהות של האפליקציה שיצרה אותו - ולכן מגיע גם לרכיב שאינו exported.
+      עם "true" כל אפליקציה אחרת בטלפון יכלה לשלוח "יצא מהרכב" מזויף
+      (אזעקה ושיחה לאיש הקשר) או "נכנס לרכב" מזויף.
+      חובה לאמת במכשיר אחרי כל שינוי כאן: נסיעה אמיתית עם האפליקציה סגורה
+      צריכה לייצר ENTER ו-EXIT ביומן האבחון.
 
       שם המחלקה כתוב במלואו ולא כ-".VehicleTransitionReceiver" בכוונה:
       שם יחסי במניפסט של ספרייה מורחב בזמן המיזוג לפי שם החבילה של
@@ -55,7 +60,7 @@
     -->
     <receiver
       android:name="com.kidscarsafety.vehicledetection.VehicleTransitionReceiver"
-      android:exported="true"
+      android:exported="false"
       android:enabled="true" />
 
     <!--
