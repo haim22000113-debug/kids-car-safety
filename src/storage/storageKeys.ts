@@ -19,4 +19,8 @@ export const StorageKeys = {
   // מתי הגיע המיקום האחרון ממשימת הרקע. **רק שעה, בלי מיקום** - כלל
   // הפרטיות. משמש לזהות מעקב שנראה פעיל אבל לא שולח כלום.
   LAST_LOCATION_AT: '@kids_car_safety/last_location_at',
+  // מתי ה-JS הציג את האזהרה האחרונה, ועל איזו אזהרה ההורה כבר ענה
+  // "הייתה נכונה?". רק שעות. ראה warningFeedback.ts.
+  LAST_WARNING_AT: '@kids_car_safety/last_warning_at',
+  WARNING_FEEDBACK_AT: '@kids_car_safety/warning_feedback_at',
 } as const;

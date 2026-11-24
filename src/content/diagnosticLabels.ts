@@ -43,6 +43,7 @@ export const EVENT_LABELS: Record<TripEventNameType, string> = {
   [TripEventName.PERMISSION_CHANGED]: 'הגנה והרשאות',
   [TripEventName.VEHICLE_EXIT_DETECTED]: 'זוהתה יציאה מהרכב',
   [TripEventName.VEHICLE_ENTER_DETECTED]: 'זוהתה כניסה לרכב',
+  [TripEventName.WARNING_FEEDBACK]: 'משוב על האזהרה',
 };
 
 /** הקודים שהצד הנייטיב כותב (appendHistory ב-Kotlin). */

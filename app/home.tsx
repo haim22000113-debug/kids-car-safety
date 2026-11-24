@@ -23,6 +23,8 @@ import { scheduleTripStartNotifications } from '../src/notifications/notificatio
 import * as protectionService from '../src/services/protectionService';
 import * as tripStateService from '../src/services/tripStateService';
 import * as vehicleDetection from '../modules/vehicle-detection';
+import { WarningFeedbackCard } from '../src/components/WarningFeedbackCard';
+import { getWarningToAskAbout } from '../src/services/warningFeedback';
 
 /** שמות הילדים שההורה בחר לנסיעה. ריק אם סימן "הילדים לא איתי". */
 function tripChildNames(trip: Trip, user: User): string[] {
@@ -55,6 +57,8 @@ export default function Home() {
   const [protectionOff, setProtectionOff] = useState(false);
   /** האם האפליקציה פטורה מחיסכון סוללה. ראה permissions.tsx. */
   const [batteryOk, setBatteryOk] = useState(true);
+  /** אזהרה מהשעות האחרונות שעוד לא ענו עליה "הייתה במקום?". */
+  const [feedbackWarningAt, setFeedbackWarningAt] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -67,6 +71,7 @@ export default function Home() {
       ]);
       setPendingTrip(pending);
       setAutoNeedsAttention(tripStateService.needsAttention());
+      setFeedbackWarningAt(await getWarningToAskAbout().catch(() => null));
 
       if (loadedUser) {
         // איפוס אוטומטי של "הילדים לא איתי" אם עבר יום (סעיף 16 - "לא להישאר פעיל בטעות").
@@ -308,6 +313,11 @@ export default function Home() {
             </Text>
           </View>
         )}
+
+        {feedbackWarningAt && !pendingTrip && !autoNeedsAttention ? (
+          // לא בזמן אזהרה פעילה: אז ההורה צריך לטפל, לא לתת משוב.
+          <WarningFeedbackCard warningAt={feedbackWarningAt} onDone={() => setFeedbackWarningAt(null)} />
+        ) : null}
 
         {activeTrip && !pendingTrip && !autoNeedsAttention ? (
           <Text style={styles.statusWish}>

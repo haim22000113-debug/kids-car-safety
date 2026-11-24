@@ -36,6 +36,8 @@ export const TripEventName = {
   PERMISSION_CHANGED: 'PERMISSION_CHANGED',
   VEHICLE_EXIT_DETECTED: 'VEHICLE_EXIT_DETECTED',
   VEHICLE_ENTER_DETECTED: 'VEHICLE_ENTER_DETECTED',
+  /** ההורה ענה "האזהרה הייתה נכונה?". ראה warningFeedback.ts. */
+  WARNING_FEEDBACK: 'WARNING_FEEDBACK',
 } as const;
 
 export type TripEventNameType = (typeof TripEventName)[keyof typeof TripEventName];

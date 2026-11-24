@@ -181,6 +181,12 @@ export const config = {
    */
   PENDING_CONFIRMATION_MAX_AGE_HOURS: 6,
 
+  /**
+   * עד כמה זמן אחרי אזהרה שואלים במסך הבית "האזהרה הייתה נכונה?".
+   * אחרי זה ההורה כבר לא זוכר בדיוק, ותשובה לא מדויקת גרועה מאין תשובה.
+   */
+  WARNING_FEEDBACK_MAX_AGE_HOURS: 12,
+
   /** כמה אירועים לשמור ביומן לפני שמוחקים ישנים. */
   EVENT_LOG_MAX_ENTRIES: 200,
 } as const;

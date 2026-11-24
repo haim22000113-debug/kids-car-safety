@@ -12,6 +12,7 @@ import {
   cancelReminders,
 } from '../notifications/notificationService';
 import { logEvent, TripEventName, loadPersistedEvents } from './eventLog';
+import { recordWarningShown } from './warningFeedback';
 
 /**
  * מדליק ומכבה את ההגנה האוטומטית, ומחבר את מכונת המצבים לעולם האמיתי:
@@ -166,6 +167,8 @@ const handlers: tripStateService.Handlers = {
     // הזמן האמיתי שבו האירוע התחיל, ולא עכשיו: כשהזיהוי הגיע מהצד
     // הנייטיב, ה-JavaScript מגיע אליו לפעמים באיחור.
     const startedAt = tripStateService.getSnapshot().firstWarningAt ?? Date.now();
+    // בשביל השאלה "האזהרה הייתה נכונה?" במסך הבית.
+    await recordWarningShown(startedAt);
 
     // מתזמנים את כל שרשרת ההתראות עכשיו, לא שלב-שלב: זו הדרך היחידה
     // שבה האזעקה תגיע גם אם האפליקציה כבר לא רצה.
