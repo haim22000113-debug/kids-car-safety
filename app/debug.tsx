@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Button } from '../src/components/Button';
@@ -16,11 +16,14 @@ import { distanceFromStop } from '../src/services/geoUtils';
 import { makeTrack, makeStationary, makePointAtDistance, ORIGIN } from '../src/services/mockLocation';
 import * as vehicleDetection from '../modules/vehicle-detection';
 import { eventLabel, nativeLabel, stateLabel, translateDetail } from '../src/content/diagnosticLabels';
+import { shareLogReport } from '../src/services/logReport';
+import { isDiagnosticsUnlocked, lockDiagnostics } from '../src/diagnostics';
 
 /**
  * מסך Debug (סעיף 29).
  *
- * לא מוצג להורה רגיל - הכניסה אליו רק מההגדרות ורק ב-development.
+ * רק לבעלים: נפתח עם קוד (ראה src/diagnostics.ts). גם קישור ישיר ל-/debug
+ * בלי הקוד מחזיר להגדרות.
  * כפתורי הסימולציה הם החלק החשוב כאן: הם מזינים למכונת המצבים דגימות
  * מדומות ומאפשרים לעבור את כל התרחישים בלי לצאת לכביש.
  */
@@ -31,6 +34,12 @@ export default function Debug() {
   const [tracking, setTracking] = useState(false);
   const [geofence, setGeofence] = useState(false);
   const [nativeHistory, setNativeHistory] = useState<vehicleDetection.NativeHistoryEntry[]>([]);
+
+  useEffect(() => {
+    void isDiagnosticsUnlocked().then((ok) => {
+      if (!ok) router.replace('/settings');
+    });
+  }, []);
 
   const refresh = useCallback(async () => {
     setPermissions(await locationService.getPermissions());
@@ -90,36 +99,13 @@ export default function Debug() {
   const simulateVehicleExit = () =>
     tripStateService.onVehicleExit(locationService.getLastSample());
 
-  /**
-   * שולח את שני היומנים כטקסט, כדי שאפשר יהיה לאבחן תקלה שקרתה בשטח.
-   * Share המובנה ולא ספרייה חיצונית: עובד גם בלי סים, דרך מייל, טלגרם או
-   * Drive. אין ביומנים מיקומים - רק אירועים ושעות.
-   */
-  const shareLog = async () => {
-    const fmt = (t: number) => new Date(t).toLocaleString('he-IL');
-    const lines = [
-      'Little Shield - יומן אבחון',
-      'נוצר: ' + fmt(Date.now()),
-      'מצב: ' + stateLabel(snapshot.state),
-      'מעקב מיקום: ' + (tracking ? 'פעיל' : 'כבוי'),
-      'מיקום ברקע: ' + (permissions?.background ? 'ניתנה' : 'חסרה'),
-      'זיהוי תנועה: ' + (vehicleDetection.isSupported() ? (vehicleDetection.isTracking() ? 'פעיל' : 'כבוי') : 'לא נתמך'),
-      '',
-      '=== חיישנים (גוגל) ===',
-      ...nativeHistory.map(
-        (e) => fmt(e.at) + ' | ' + nativeLabel(e.type) + (e.detail ? ' | ' + translateDetail(e.detail) : '')
-      ),
-      '',
-      '=== אפליקציה ===',
-      ...events.map(
-        (e) => fmt(e.at) + ' | ' + eventLabel(e.name) + (e.detail ? ' | ' + translateDetail(e.detail) : '')
-      ),
-    ];
-    try {
-      await Share.share({ message: lines.join(String.fromCharCode(10)) });
-    } catch {
-      // ההורה ביטל את השיתוף - לא קריטי.
-    }
+  /** שני היומנים כטקסט. ראה logReport.ts. */
+  const shareLog = shareLogReport;
+
+  /** מסתיר שוב את מסך האבחון בטלפון הזה. כניסה חוזרת: 7 לחיצות על הגרסה + קוד. */
+  const lock = async () => {
+    await lockDiagnostics();
+    router.replace('/settings');
   };
 
   const resetAll = async () => {
@@ -226,6 +212,7 @@ export default function Debug() {
         )}
 
         <Button title="📤 שתף יומן" onPress={shareLog} style={styles.refresh} />
+        <Button title="🔒 נעל את מסך האבחון" variant="ghost" onPress={lock} />
         <Button title="רענן" variant="ghost" onPress={refresh} style={styles.refresh} />
       </ScrollView>
     </SafeAreaView>

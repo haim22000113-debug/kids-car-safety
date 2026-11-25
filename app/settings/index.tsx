@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, Alert, Linking } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Switch, Alert, Linking, Pressable, Modal, TextInput } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { isDiagnosticsEnabled } from '../../src/diagnostics';
+import { DIAGNOSTICS_TAPS, isDiagnosticsUnlocked, unlockDiagnostics } from '../../src/diagnostics';
+import { shareLogReport } from '../../src/services/logReport';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
@@ -56,6 +57,12 @@ export default function Settings() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  /** מסך האבחון - רק בטלפון שבו הוזן הקוד של הבעלים. ראה src/diagnostics.ts. */
+  const [diagUnlocked, setDiagUnlocked] = useState(false);
+  const [codeVisible, setCodeVisible] = useState(false);
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState(false);
+  const versionTaps = useRef<{ count: number; at: number }>({ count: 0, at: 0 });
 
   const load = useCallback(() => {
     setLoadError(null);
@@ -84,8 +91,38 @@ export default function Settings() {
   useFocusEffect(
     useCallback(() => {
       load();
+      void isDiagnosticsUnlocked().then(setDiagUnlocked);
     }, [load])
   );
+
+  /** 7 לחיצות רצופות (בהפרש של עד 1.5 שניות) על מספר הגרסה פותחות את חלון הקוד. */
+  const onVersionTap = () => {
+    const now = Date.now();
+    const taps = versionTaps.current;
+    taps.count = now - taps.at < 1500 ? taps.count + 1 : 1;
+    taps.at = now;
+    if (taps.count >= DIAGNOSTICS_TAPS) {
+      taps.count = 0;
+      if (diagUnlocked) {
+        router.push('/debug');
+      } else {
+        setCode('');
+        setCodeError(false);
+        setCodeVisible(true);
+      }
+    }
+  };
+
+  const submitCode = async () => {
+    if (await unlockDiagnostics(code)) {
+      setDiagUnlocked(true);
+      setCodeVisible(false);
+      router.push('/debug');
+    } else {
+      setCodeError(true);
+      setCode('');
+    }
+  };
 
   const addChild = () => {
     setChildren((prev) => [...prev, { id: `child_${Date.now()}`, name: '', age: '' }]);
@@ -374,7 +411,9 @@ export default function Settings() {
             variant="ghost"
             onPress={() => Linking.openSettings()}
           />
-          {isDiagnosticsEnabled() ? (
+          {/* לכולם, כולל בודקים: היומן בלי מיקומים, ואפשר לשלוח אותו בוואטסאפ. */}
+          <Button title="שלח דיווח על תקלה" variant="ghost" onPress={shareLogReport} />
+          {diagUnlocked ? (
             <Button title="מסך אבחון" variant="ghost" onPress={() => router.push('/debug')} />
           ) : null}
         </Card>
@@ -398,13 +437,41 @@ export default function Settings() {
           <Text style={styles.emergencyText}>{DISCLAIMER_EMERGENCY}</Text>
         </View>
 
-        <Text style={styles.versionText}>
-          גרסה {Constants.expoConfig?.version ?? '—'}
-        </Text>
-
         <Text style={[styles.sectionTitle, styles.dangerTitle]}>איזור מסוכן</Text>
         <Button title="מחק את כל הנתונים" variant="ghost" onPress={onResetData} style={styles.dangerButton} />
+
+        {/* 7 לחיצות כאן = כניסה למסך האבחון (עם קוד). בלי שום רמז במסך. */}
+        <Pressable onPress={onVersionTap} hitSlop={12}>
+          <Text style={styles.versionText}>
+            Little Shield · גרסה {Constants.expoConfig?.version ?? '—'}
+          </Text>
+        </Pressable>
       </ScrollView>
+
+      <Modal visible={codeVisible} transparent animationType="fade" onRequestClose={() => setCodeVisible(false)}>
+        <View style={styles.codeOverlay}>
+          <View style={styles.codeCard}>
+            <Text style={styles.codeTitle}>קוד כניסה</Text>
+            <TextInput
+              style={[styles.codeInput, codeError ? styles.codeInputError : null]}
+              value={code}
+              onChangeText={(t) => {
+                setCode(t.replace(/[^0-9]/g, ''));
+                setCodeError(false);
+              }}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={6}
+              autoFocus
+              onSubmitEditing={submitCode}
+              accessibilityLabel="קוד כניסה"
+            />
+            {codeError ? <Text style={styles.codeErrorText}>קוד שגוי</Text> : null}
+            <Button title="כניסה" onPress={submitCode} disabled={code.length < 6} />
+            <Button title="ביטול" variant="ghost" onPress={() => setCodeVisible(false)} />
+          </View>
+        </View>
+      </Modal>
 
       {/* כפתור השמירה קבוע בתחתית - תמיד גלוי, באזור האגודל. */}
       <View style={styles.saveBar}>
@@ -588,6 +655,36 @@ const styles = StyleSheet.create({
     textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
+  codeOverlay: {
+    flex: 1,
+    backgroundColor: theme.colors.overlay,
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  codeCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  codeTitle: {
+    fontSize: theme.typography.subtitle,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  codeInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    height: theme.minTouchTarget,
+    fontSize: 24,
+    letterSpacing: 8,
+    textAlign: 'center',
+    color: theme.colors.textPrimary,
+  },
+  codeInputError: { borderColor: theme.colors.danger },
+  codeErrorText: { color: theme.colors.danger, textAlign: 'center', fontSize: theme.typography.caption },
   versionText: {
     fontSize: theme.typography.caption,
     color: theme.colors.textSecondary,

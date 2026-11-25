@@ -23,4 +23,6 @@ export const StorageKeys = {
   // "הייתה נכונה?". רק שעות. ראה warningFeedback.ts.
   LAST_WARNING_AT: '@kids_car_safety/last_warning_at',
   WARNING_FEEDBACK_AT: '@kids_car_safety/warning_feedback_at',
+  // האם מסך האבחון נפתח בטלפון הזה עם הקוד של הבעלים. ראה diagnostics.ts.
+  DIAGNOSTICS_UNLOCKED: '@kids_car_safety/diagnostics_unlocked',
 } as const;
