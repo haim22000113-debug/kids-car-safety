@@ -7,6 +7,8 @@ import { DIAGNOSTICS_TAPS, isDiagnosticsUnlocked, unlockDiagnostics } from '../.
 import { shareLogReport } from '../../src/services/logReport';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
+import { Card, ListRow } from '../../src/components/Card';
+import { Icon } from '../../src/components/Icon';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { theme } from '../../src/theme';
@@ -23,16 +25,6 @@ import {
   DISCLAIMER_POINTS,
   DISCLAIMER_EMERGENCY,
 } from '../../src/content/disclaimer';
-
-/** קטגוריה במסך ההגדרות: כותרת ומסגרת, כדי שההפרדה תהיה ברורה במבט. */
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
 
 interface ChildDraft {
   id: string;
@@ -279,81 +271,193 @@ export default function Settings() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {notWithMeActive ? (
           <View style={styles.notWithMeBox}>
+            <Icon name="people-outline" size={20} color={theme.colors.warning} />
             <Text style={styles.notWithMeText}>
-              מצב &quot;הילדים לא איתי&quot; פעיל (
-              {user.settings.childrenNotWithMe.scope === 'day' ? 'עד סוף היום' : 'לנסיעה הבאה'})
+              &quot;הילדים לא איתי&quot; פעיל{' '}
+              {user.settings.childrenNotWithMe.scope === 'day' ? 'עד סוף היום' : 'לנסיעה הבאה'}
             </Text>
-            <Button title="בטל מצב" variant="ghost" onPress={cancelNotWithMe} />
+            <Pressable onPress={cancelNotWithMe} accessibilityRole="button" hitSlop={8}>
+              <Text style={styles.notWithMeCancel}>ביטול</Text>
+            </Pressable>
           </View>
         ) : null}
 
-        <Card title="👤 השם שלך">
-          <TextField label="שם פרטי" value={name} onChangeText={setName} />
-        </Card>
-
-        <Card title="👧 ילדים">
-          {children.map((child) => (
-            <View key={child.id} style={styles.childBlock}>
-              <TextField
-                label="שם"
-                value={child.name}
-                onChangeText={(text) => updateChild(child.id, { name: text })}
-              />
-              <TextField
-                label="גיל"
-                value={child.age}
-                onChangeText={(text) => updateChild(child.id, { age: text.replace(/[^0-9]/g, '') })}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-              <Button title="הסר ילד" variant="ghost" onPress={() => removeChild(child.id)} />
+        <Card title="הגנה" icon="shield-checkmark">
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextWrap}>
+              <Text style={styles.switchLabel}>הגנה אוטומטית</Text>
+              <Text style={styles.switchHint}>
+                מזהה לבד שנסיעה הסתיימה ושואלת אם כל הילדים יצאו, בלי שתצטרך ללחוץ על כלום.
+              </Text>
             </View>
-          ))}
-          <Button title="+ הוסף ילד" variant="ghost" onPress={addChild} style={styles.addChildButton} />
+            <Switch
+              value={autoProtection}
+              onValueChange={setAutoProtection}
+              trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
+              thumbColor={theme.colors.surface}
+              accessibilityLabel="הפעל או כבה הגנה אוטומטית"
+            />
+          </View>
+          {!autoProtection ? (
+            <View style={styles.warningBox}>
+              <Icon name="alert-circle" size={18} color={theme.colors.warning} />
+              <Text style={styles.warningText}>
+                ההגנה האוטומטית תהיה כבויה. תקבל תזכורות רק על נסיעות שתפעיל ידנית.
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.testBlock}>
+            <Text style={styles.testTitle}>בדוק את ההגנה</Text>
+            <Text style={styles.infoText}>
+              מצלצל את האזעקה האמיתית (בלי להתקשר לאף אחד) ובודק שאין שום דבר בטלפון שחוסם את האזהרות.
+            </Text>
+            <Button
+              title="בדוק עכשיו"
+              icon="notifications"
+              variant="secondary"
+              onPress={onTestProtection}
+              loading={testing}
+            />
+            {testItems
+              ? testItems.map((item, i) => (
+                  <View key={i} style={[styles.testItem, item.ok ? styles.testOk : styles.testBad]}>
+                    <Icon
+                      name={item.ok ? 'checkmark-circle' : 'alert-circle'}
+                      size={20}
+                      color={item.ok ? theme.colors.success : theme.colors.warning}
+                    />
+                    <Text style={styles.testItemText}>{item.text}</Text>
+                    {item.action ? (
+                      <Pressable onPress={() => onTestAction(item.action!)} accessibilityRole="button" hitSlop={8}>
+                        <Text style={styles.testFix}>תקן</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ))
+              : null}
+          </View>
+
+          <View style={styles.rows}>
+            <ListRow icon="key-outline" label="בדיקת הרשאות" onPress={() => router.push('/permissions')} />
+            <ListRow
+              icon="notifications-outline"
+              label="הגדרות התראות במכשיר"
+              onPress={() => Linking.openSettings()}
+            />
+            {/* לכולם, כולל בודקים: היומן בלי מיקומים, ואפשר לשלוח אותו בוואטסאפ. */}
+            <ListRow
+              icon="chatbubble-ellipses-outline"
+              label="שלח דיווח על תקלה"
+              onPress={shareLogReport}
+              last={!diagUnlocked}
+            />
+            {diagUnlocked ? (
+              <ListRow icon="pulse-outline" label="מסך אבחון" onPress={() => router.push('/debug')} last />
+            ) : null}
+          </View>
         </Card>
 
-        <Card title="📞 איש קשר לחירום">
-          <Text style={styles.infoText}>
-            {user.emergencyContact
-              ? `${user.emergencyContact.name} · ${user.emergencyContact.phone}`
-              : AUTO_CALL_SUPPORTED
-                ? 'לא הוגדר איש קשר. בלי איש קשר לא תהיה שיחה אוטומטית.'
-                : 'לא הוגדר איש קשר.'}
-          </Text>
+        <Card title="איש קשר לחירום" icon="call">
+          <View style={styles.contactRow}>
+            <View style={styles.contactAvatar}>
+              <Icon
+                name={user.emergencyContact ? 'person' : 'person-add-outline'}
+                size={22}
+                color={theme.colors.primary}
+              />
+            </View>
+            <View style={styles.switchTextWrap}>
+              <Text style={styles.switchLabel}>
+                {user.emergencyContact ? user.emergencyContact.name : 'לא הוגדר איש קשר'}
+              </Text>
+              <Text style={styles.switchHint}>
+                {user.emergencyContact
+                  ? user.emergencyContact.phone
+                  : AUTO_CALL_SUPPORTED
+                    ? 'בלי איש קשר לא תהיה שיחה אוטומטית.'
+                    : 'אפשר להתקשר אליו בלחיצה אחת מהאזהרה.'}
+              </Text>
+            </View>
+          </View>
           <Button
             title={user.emergencyContact ? 'ערוך איש קשר' : 'הוסף איש קשר'}
-            variant="ghost"
+            variant="secondary"
             onPress={() => router.push('/settings/emergency-contact')}
           />
         </Card>
 
-        <Card title="🔔 תזכורות">
-          <Text style={styles.subTitle}>תזכורות בנסיעה ידנית (דקות מסיום הנסיעה)</Text>
-          <TextField
-            label="תזכורת ראשונה"
-            value={firstMin}
-            onChangeText={(t) => setFirstMin(t.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
-          <TextField
-            label="תזכורת שנייה"
-            value={secondMin}
-            onChangeText={(t) => setSecondMin(t.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
-          <TextField
-            label="תזכורת שלישית"
-            value={thirdMin}
-            onChangeText={(t) => setThirdMin(t.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
+        <Card title="השם שלך" icon="person-circle-outline">
+          <TextField label="שם פרטי" value={name} onChangeText={setName} />
+        </Card>
 
-          <Text style={styles.subTitle}>תזכורת אם שכחת לסיים נסיעה</Text>
+        <Card title="ילדים" icon="happy-outline">
+          {children.map((child) => (
+            <View key={child.id} style={styles.childRow}>
+              <View style={styles.childName}>
+                <TextField
+                  label="שם"
+                  value={child.name}
+                  onChangeText={(text) => updateChild(child.id, { name: text })}
+                />
+              </View>
+              <View style={styles.childAge}>
+                <TextField
+                  label="גיל"
+                  value={child.age}
+                  onChangeText={(text) => updateChild(child.id, { age: text.replace(/[^0-9]/g, '') })}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+              <Pressable
+                onPress={() => removeChild(child.id)}
+                style={({ pressed }) => [styles.removeChild, pressed && { opacity: 0.6 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`הסר את ${child.name || 'הילד'}`}
+                hitSlop={6}
+              >
+                <Icon name="trash-outline" size={20} color={theme.colors.danger} />
+              </Pressable>
+            </View>
+          ))}
+          <Button title="הוסף ילד" icon="add" variant="secondary" onPress={addChild} style={styles.addChildButton} />
+        </Card>
+
+        <Card title="תזכורות בנסיעה ידנית" icon="alarm-outline">
+          <Text style={styles.subTitle}>כמה דקות אחרי &quot;סיים נסיעה&quot;</Text>
+          <View style={styles.reminderRow}>
+            <View style={styles.reminderCell}>
+              <TextField
+                label="ראשונה"
+                value={firstMin}
+                onChangeText={(t) => setFirstMin(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
+            <View style={styles.reminderCell}>
+              <TextField
+                label="שנייה"
+                value={secondMin}
+                onChangeText={(t) => setSecondMin(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
+            <View style={styles.reminderCell}>
+              <TextField
+                label="שלישית"
+                value={thirdMin}
+                onChangeText={(t) => setThirdMin(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
+          </View>
+
           <TextField
-            label="אחרי כמה דקות (מתחילת הנסיעה)"
+            label="תזכורת אם שכחת לסיים נסיעה (דקות מתחילתה)"
             value={tripActiveMin}
             onChangeText={(t) => setTripActiveMin(t.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
@@ -361,61 +465,14 @@ export default function Settings() {
           />
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>צלילי התראות</Text>
-            <Switch value={soundEnabled} onValueChange={setSoundEnabled} />
-          </View>
-        </Card>
-
-        <Card title="🔔 בדוק את ההגנה">
-          <Text style={styles.infoText}>
-            מצלצל את האזעקה האמיתית (בלי להתקשר לאף אחד) ובודק שאין שום דבר בטלפון שחוסם את האזהרות.
-          </Text>
-          <Button title="בדוק עכשיו" onPress={onTestProtection} loading={testing} />
-          {testItems
-            ? testItems.map((item, i) => (
-                <View key={i} style={item.ok ? styles.testOk : styles.warningBox}>
-                  <Text style={item.ok ? styles.testOkText : styles.warningText}>
-                    {item.ok ? '✓ ' : '⚠️ '}
-                    {item.text}
-                  </Text>
-                  {item.action ? (
-                    <Button title="תקן" variant="ghost" onPress={() => onTestAction(item.action!)} />
-                  ) : null}
-                </View>
-              ))
-            : null}
-        </Card>
-
-        <Card title="🛡️ הגנה והרשאות">
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>הגנה אוטומטית</Text>
+            <Text style={[styles.switchLabel, styles.switchTextWrap]}>צלילי התראות</Text>
             <Switch
-              value={autoProtection}
-              onValueChange={setAutoProtection}
-              accessibilityLabel="הפעל או כבה הגנה אוטומטית"
+              value={soundEnabled}
+              onValueChange={setSoundEnabled}
+              trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
+              thumbColor={theme.colors.surface}
             />
           </View>
-          <Text style={styles.infoText}>
-            מזהה לבד שנסיעה הסתיימה ושואלת אם כל הילדים יצאו, בלי שתצטרך ללחוץ על כלום.
-          </Text>
-          {!autoProtection ? (
-            <View style={styles.warningBox}>
-              <Text style={styles.warningText}>
-                ההגנה האוטומטית תהיה כבויה. תקבל תזכורות רק על נסיעות שתפעיל ידנית.
-              </Text>
-            </View>
-          ) : null}
-          <Button title="בדיקת הרשאות" variant="ghost" onPress={() => router.push('/permissions')} />
-          <Button
-            title="הגדרות התראות במכשיר"
-            variant="ghost"
-            onPress={() => Linking.openSettings()}
-          />
-          {/* לכולם, כולל בודקים: היומן בלי מיקומים, ואפשר לשלוח אותו בוואטסאפ. */}
-          <Button title="שלח דיווח על תקלה" variant="ghost" onPress={shareLogReport} />
-          {diagUnlocked ? (
-            <Button title="מסך אבחון" variant="ghost" onPress={() => router.push('/debug')} />
-          ) : null}
         </Card>
 
         {/* מידע - לא הגדרות. בתחתית, כדי שלא יפריד בין ההגדרות עצמן. */}
@@ -437,8 +494,9 @@ export default function Settings() {
           <Text style={styles.emergencyText}>{DISCLAIMER_EMERGENCY}</Text>
         </View>
 
-        <Text style={[styles.sectionTitle, styles.dangerTitle]}>איזור מסוכן</Text>
-        <Button title="מחק את כל הנתונים" variant="ghost" onPress={onResetData} style={styles.dangerButton} />
+        <Card style={styles.dangerCard}>
+          <ListRow icon="trash-outline" label="מחק את כל הנתונים" onPress={onResetData} tone="danger" last />
+        </Card>
 
         {/* 7 לחיצות כאן = כניסה למסך האבחון (עם קוד). בלי שום רמז במסך. */}
         <Pressable onPress={onVersionTap} hitSlop={12}>
@@ -508,14 +566,14 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.sm,
   },
   subTitle: {
     fontSize: theme.typography.body,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.medium,
     color: theme.colors.textSecondary,
     textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.sm,
@@ -534,27 +592,96 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption,
     textAlign: 'center',
     marginBottom: theme.spacing.xs,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.medium,
   },
   notWithMeBox: {
-    backgroundColor: '#FFF3E0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.warningSoft,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
   notWithMeText: {
-    color: theme.colors.warning,
+    flex: 1,
+    color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.medium,
   },
   sectionTitle: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
     marginTop: theme.spacing.xl,
     marginBottom: theme.spacing.sm,
   },
+  switchTextWrap: { flex: 1 },
+  switchHint: {
+    fontSize: theme.typography.caption + 1,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.textSecondary,
+    textAlign: TEXT_RIGHT,
+    marginTop: 2,
+    lineHeight: 19,
+  },
+  notWithMeCancel: { fontSize: theme.typography.body, fontFamily: theme.fonts.semibold, color: theme.colors.warning },
+  testBlock: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  testTitle: {
+    fontSize: theme.typography.body,
+    fontFamily: theme.fonts.semibold,
+    color: theme.colors.textPrimary,
+    textAlign: TEXT_RIGHT,
+    marginBottom: 2,
+  },
+  testItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm + 4,
+    marginTop: theme.spacing.sm,
+  },
+  testBad: { backgroundColor: theme.colors.warningSoft },
+  testItemText: {
+    flex: 1,
+    fontSize: theme.typography.caption + 1,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.textPrimary,
+    textAlign: TEXT_RIGHT,
+    lineHeight: 20,
+  },
+  testFix: { fontSize: theme.typography.body, fontFamily: theme.fonts.semibold, color: theme.colors.primary },
+  rows: { marginTop: theme.spacing.md, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  contactRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md },
+  contactAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  childRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm },
+  childName: { flex: 2 },
+  childAge: { flex: 1 },
+  removeChild: {
+    width: 44,
+    height: theme.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  reminderRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  reminderCell: { flex: 1 },
+  dangerCard: { marginTop: theme.spacing.lg, paddingVertical: theme.spacing.xs },
   dangerTitle: {
     color: theme.colors.danger,
   },
@@ -566,11 +693,10 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
-  addChildButton: {
-    marginTop: theme.spacing.xs,
-  },
+  addChildButton: { marginTop: theme.spacing.xs },
   infoText: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.sm,
@@ -578,46 +704,44 @@ const styles = StyleSheet.create({
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   switchLabel: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.semibold,
     color: theme.colors.textPrimary,
-  },
-  testOk: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-    marginTop: theme.spacing.sm,
-  },
-  testOkText: {
-    fontSize: theme.typography.caption,
-    color: theme.colors.success,
     textAlign: TEXT_RIGHT,
-    lineHeight: 22,
   },
+  testOk: { backgroundColor: theme.colors.successSoft },
+  testOkText: { color: theme.colors.success },
   warningBox: {
-    backgroundColor: '#FFF3E0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.warningSoft,
     borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm + 4,
+    marginTop: theme.spacing.md,
   },
   warningText: {
-    fontSize: theme.typography.caption,
-    color: theme.colors.warning,
+    flex: 1,
+    fontSize: theme.typography.caption + 1,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   error: {
     color: theme.colors.danger,
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     textAlign: 'center',
     marginBottom: theme.spacing.xs,
   },
   savedText: {
     color: theme.colors.success,
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     textAlign: 'center',
     marginBottom: theme.spacing.xs,
   },
@@ -631,6 +755,7 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.primary,
     marginEnd: theme.spacing.sm,
     lineHeight: 22,
@@ -638,12 +763,13 @@ const styles = StyleSheet.create({
   pointText: {
     flex: 1,
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
   emergencyBox: {
-    backgroundColor: '#FDECEA',
+    backgroundColor: theme.colors.dangerSoft,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     marginTop: theme.spacing.sm,
@@ -651,7 +777,7 @@ const styles = StyleSheet.create({
   emergencyText: {
     fontSize: theme.typography.caption,
     color: theme.colors.danger,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.medium,
     textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
@@ -669,7 +795,7 @@ const styles = StyleSheet.create({
   },
   codeTitle: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },
@@ -679,14 +805,16 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     height: theme.minTouchTarget,
     fontSize: 24,
+    fontFamily: theme.fonts.regular,
     letterSpacing: 8,
     textAlign: 'center',
     color: theme.colors.textPrimary,
   },
   codeInputError: { borderColor: theme.colors.danger },
-  codeErrorText: { color: theme.colors.danger, textAlign: 'center', fontSize: theme.typography.caption },
+  codeErrorText: { color: theme.colors.danger, textAlign: 'center', fontSize: theme.typography.caption  ,fontFamily: theme.fonts.regular,},
   versionText: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: theme.spacing.xl,

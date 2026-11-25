@@ -6,6 +6,7 @@ import { TextField } from '../../src/components/TextField';
 import { Stepper } from '../../src/components/Stepper';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
+import { ScreenIntro } from '../../src/components/ScreenIntro';
 
 // Onboarding - פרטי הורה (סעיף 7): שם פרטי + מספר ילדים.
 export default function OnboardingUser() {
@@ -27,7 +28,13 @@ export default function OnboardingUser() {
 
   return (
     <FormScreen footer={<Button title="המשך" onPress={onContinue} />}>
-      <Text style={styles.title}>ספר לנו קצת עליך</Text>
+      <ScreenIntro
+        icon="person-circle-outline"
+        title="ספר לנו קצת עליך"
+        subtitle="כדי שהאפליקציה תפנה אליך בשם."
+        step={1}
+        steps={4}
+      />
 
       <TextField
         label="שם פרטי"
@@ -49,7 +56,7 @@ export default function OnboardingUser() {
 const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.xl,

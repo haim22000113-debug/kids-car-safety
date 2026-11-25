@@ -54,13 +54,14 @@ const styles = StyleSheet.create({
   mark: {
     color: theme.colors.textOnPrimary,
     fontSize: 18,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     lineHeight: 22,
   },
   label: {
     flex: 1,
     marginHorizontal: theme.spacing.md,
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
   },

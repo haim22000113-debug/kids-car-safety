@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../theme';
+import { Icon } from './Icon';
 
 interface Props {
   title?: string;
@@ -43,7 +44,7 @@ export function ScreenHeader({ title, fallback = '/home' }: Props) {
         accessibilityLabel="חזור"
         hitSlop={12}
       >
-        <Text style={styles.backArrow}>→</Text>
+        <Icon name="chevron-forward" size={24} color={theme.colors.textPrimary} />
       </Pressable>
 
       {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : null}
@@ -65,18 +66,14 @@ const styles = StyleSheet.create({
   backButton: {
     width: 44,
     height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 28,
-    color: theme.colors.primary,
-    lineHeight: 32,
   },
   title: {
     flex: 1,
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },

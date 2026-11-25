@@ -1,5 +1,12 @@
-import React, { useEffect } from 'react';
-import { AppState } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AppState, View } from 'react-native';
+import {
+  useFonts,
+  Rubik_400Regular,
+  Rubik_500Medium,
+  Rubik_600SemiBold,
+  Rubik_700Bold,
+} from '@expo-google-fonts/rubik';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { ensureRTL } from '../src/i18n/rtl';
@@ -57,6 +64,23 @@ async function confirmFromNotification(data: Record<string, unknown> | undefined
 }
 
 export default function RootLayout() {
+  /**
+   * הגופן נטען מקובץ מקומי (בלי רשת) תוך שבריר שנייה. בינתיים מסך ריק בצבע
+   * הרקע, ולא טקסט שקופץ מגופן לגופן. אם משהו נתקע - אחרי שתי שניות מציגים
+   * בכל זאת עם גופן המערכת: אפליקציית בטיחות לא נתקעת על גופן.
+   */
+  const [fontsLoaded, fontError] = useFonts({
+    Rubik_400Regular,
+    Rubik_500Medium,
+    Rubik_600SemiBold,
+    Rubik_700Bold,
+  });
+  const [fontTimeout, setFontTimeout] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFontTimeout(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     ensureRTL();
     trackEvent(AnalyticsEvent.APP_OPENED);
@@ -130,6 +154,10 @@ export default function RootLayout() {
       appStateSub.remove();
     };
   }, []);
+
+  if (!fontsLoaded && !fontError && !fontTimeout) {
+    return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
+  }
 
   return (
     <Stack

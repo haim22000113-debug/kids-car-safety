@@ -1,20 +1,32 @@
-// פלטת צבעים רגועה ולא מפחידה, בהשראת סעיף 21 (UX Principles) וסעיף 22 (Accessibility).
-// ניגודיות גבוהה בין טקסט לרקע, וצבע ייעודי לכל מצב (רגיל / תזכורת / חירום / הצלחה).
+/**
+ * פלטת הצבעים של Little Shield (עיצוב 2, 25.11.2026).
+ *
+ * כחול עמוק ובטוח כצבע המותג (מגן), רקע אפור-כחלחל רך, וצבע "רך" לכל מצב
+ * (רקע בהיר של אותו גוון) - כדי שכרטיס מצב ייראה כמו חלק מהעיצוב ולא כמו
+ * תיבת אזהרה צועקת. הניגודיות של טקסט על רקע עומדת ב-WCAG AA.
+ */
 export const colors = {
-  background: '#F7F9FC',
+  background: '#F3F5FA',
   surface: '#FFFFFF',
-  border: '#E2E8F0',
+  surfaceMuted: '#F7F8FC',
+  border: '#E2E6EF',
 
-  textPrimary: '#1A202C',
-  textSecondary: '#4A5568',
+  textPrimary: '#16213E',
+  textSecondary: '#5A6479',
+  textMuted: '#8A93A6',
   textOnPrimary: '#FFFFFF',
 
-  primary: '#2B6CB0', // כפתור פעולה ראשי (התחל נסיעה / אישור)
-  primaryDark: '#1E4E8C',
+  primary: '#2F5BEA', // כפתור פעולה ראשי (התחל נסיעה / אישור)
+  primaryDark: '#1F43C4',
+  primarySoft: '#E8EEFF',
 
-  success: '#2F855A', // אושר שהילדים יצאו
-  warning: '#DD6B20', // תזכורת
-  danger: '#C53030', // No response / חירום
+  success: '#16885A', // אושר / ההגנה פעילה
+  successSoft: '#E3F5EC',
+  warning: '#C2570C', // תזכורת / משהו חסר
+  warningSoft: '#FFF1E2',
+  danger: '#D1343A', // אזהרה / חירום
+  dangerSoft: '#FDECEC',
 
-  overlay: 'rgba(26, 32, 44, 0.4)',
+  overlay: 'rgba(22, 33, 62, 0.45)',
+  shadow: '#16213E',
 } as const;

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
 import { Checkbox } from '../src/components/Checkbox';
 import { theme } from '../src/theme';
+import { ScreenIntro } from '../src/components/ScreenIntro';
 import { TEXT_RIGHT } from '../src/i18n/rtl';
 import { DisclaimerStorage, UserStorage } from '../src/storage';
 import {
@@ -44,7 +45,7 @@ export default function Disclaimer() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{DISCLAIMER_TITLE}</Text>
+        <ScreenIntro icon="information-circle-outline" title={DISCLAIMER_TITLE} />
         <Text style={styles.intro}>{DISCLAIMER_INTRO}</Text>
 
         <View style={styles.points}>
@@ -89,13 +90,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
   },
   intro: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
     lineHeight: 24,
@@ -111,6 +113,7 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.primary,
     marginEnd: theme.spacing.sm,
     lineHeight: 22,
@@ -118,12 +121,13 @@ const styles = StyleSheet.create({
   pointText: {
     flex: 1,
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: TEXT_RIGHT,
     lineHeight: 22,
   },
   emergencyBox: {
-    backgroundColor: '#FDECEA',
+    backgroundColor: theme.colors.dangerSoft,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.lg,
@@ -131,7 +135,7 @@ const styles = StyleSheet.create({
   emergencyText: {
     fontSize: theme.typography.body,
     color: theme.colors.danger,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.medium,
     textAlign: TEXT_RIGHT,
     lineHeight: 24,
   },

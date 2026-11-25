@@ -195,7 +195,7 @@ export async function startTracking(): Promise<boolean> {
       foregroundService: {
         notificationTitle: 'Little Shield',
         notificationBody: 'ההגנה האוטומטית פעילה',
-        notificationColor: '#2B6CB0',
+        notificationColor: '#2F5BEA',
         killServiceOnDestroy: false,
       },
     });

@@ -6,6 +6,8 @@ import * as Device from 'expo-device';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
+import { Icon, IconName } from '../src/components/Icon';
+import { IconBadge } from '../src/components/Card';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { theme } from '../src/theme';
 import { TEXT_RIGHT } from '../src/i18n/rtl';
@@ -167,7 +169,7 @@ export default function Permissions() {
   const steps: Step[] = [
     {
       key: 'location',
-      icon: '📍',
+      icon: 'location' as const,
       title: 'מיקום',
       granted: foreground,
       description: 'מאפשר לזהות מתי נסיעה מתחילה ומתי היא נעצרת.',
@@ -176,7 +178,7 @@ export default function Permissions() {
     },
     {
       key: 'background',
-      icon: '🌙',
+      icon: 'moon' as const,
       title: 'מיקום ברקע',
       granted: background,
       description: 'בלעדיו ההגנה תעבוד רק כשהאפליקציה פתוחה על המסך.',
@@ -189,7 +191,7 @@ export default function Permissions() {
     },
     {
       key: 'notifications',
-      icon: '🔔',
+      icon: 'notifications' as const,
       title: 'התראות',
       granted: notifications,
       description: 'בלעדיהן המערכת יכולה לזהות שיצאת מהרכב, ופשוט לא להגיע אליך.',
@@ -200,7 +202,7 @@ export default function Permissions() {
       ? [
           {
             key: 'motion',
-            icon: '🚗',
+            icon: 'car-sport' as const,
             title: 'זיהוי תנועה',
             granted: motion,
             description: 'מזהה כניסה ויציאה מהרכב בלי להשתמש ב-GPS. חוסך סוללה ומדויק יותר.',
@@ -213,7 +215,7 @@ export default function Permissions() {
       ? [
           {
             key: 'call',
-            icon: '📞',
+            icon: 'call' as const,
             title: 'חיוג לאיש קשר',
             granted: call,
             description:
@@ -223,7 +225,7 @@ export default function Permissions() {
           },
           {
             key: 'battery',
-            icon: '🔋',
+            icon: 'battery-charging' as const,
             title: 'פעולה ברקע ללא הגבלה',
             granted: battery,
             description:
@@ -237,7 +239,7 @@ export default function Permissions() {
           },
           {
             key: 'exactAlarm',
-            icon: '⏰',
+            icon: 'alarm' as const,
             title: 'אזעקה בזמן מדויק',
             granted: exactAlarm,
             onlyWhenMissing: true,
@@ -248,7 +250,7 @@ export default function Permissions() {
           },
           {
             key: 'fullScreen',
-            icon: '📱',
+            icon: 'phone-portrait-outline' as const,
             title: 'מסך מלא מעל הנעילה',
             granted: fullScreen,
             onlyWhenMissing: true,
@@ -314,7 +316,7 @@ export default function Permissions() {
 
 interface Step {
   key: string;
-  icon: string;
+  icon: IconName;
   title: string;
   description: string;
   granted: boolean;
@@ -362,7 +364,14 @@ function PermissionWizard({
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.wizardContent}>
-          <Text style={styles.wizardIcon}>{allGood ? '✅' : '🟡'}</Text>
+          <IconBadge
+            name={allGood ? 'checkmark' : 'ellipsis-horizontal'}
+            color={theme.colors.textOnPrimary}
+            background={allGood ? theme.colors.success : theme.colors.warning}
+            size={80}
+            halo
+          />
+          <View style={styles.wizardGap} />
           <Text style={styles.title}>{allGood ? 'הכל מוכן!' : 'כמעט מוכן'}</Text>
           {allGood ? (
             <Text style={styles.wizardBody}>ההגנה האוטומטית פעילה. אין צורך להפעיל נסיעה בכל פעם.</Text>
@@ -372,7 +381,7 @@ function PermissionWizard({
                 חסר עדיין: {missing.map((s) => s.title).join(', ')}. בלי זה ההגנה האוטומטית מוגבלת.
                 אפשר להשלים בכל רגע מההגדרות ← הרשאות.
               </Text>
-              <Button title="חזרה לשלבים שחסרים" variant="ghost" onPress={() => setSkipped(new Set())} />
+              <Button title="חזרה לשלבים שחסרים" variant="secondary" onPress={() => setSkipped(new Set())} />
             </>
           )}
 
@@ -381,7 +390,7 @@ function PermissionWizard({
             <Text style={styles.testBody}>
               כדאי לדעת לזהות אותה. זו בדיקה בלבד: היא לא מתקשרת לאף אחד.
             </Text>
-            <Button title="🔔 השמע אזעקת בדיקה" variant="ghost" onPress={runTest} loading={testing} />
+            <Button title="השמע אזעקת בדיקה" icon="notifications" variant="secondary" onPress={runTest} loading={testing} />
             {testItems ? (
               <Text style={[styles.testResult, problems.length > 0 ? styles.testResultBad : null]}>
                 {problems.length === 0
@@ -412,7 +421,8 @@ function PermissionWizard({
         </View>
       </View>
       <ScrollView contentContainerStyle={styles.wizardContent}>
-        <Text style={styles.wizardIcon}>{step.icon}</Text>
+        <IconBadge name={step.icon} color={theme.colors.primary} background={theme.colors.primarySoft} size={88} halo />
+        <View style={styles.wizardGap} />
         <Text style={styles.title}>{step.title}</Text>
         <Text style={styles.wizardBody}>{step.description}</Text>
         {index === 0 ? (
@@ -437,19 +447,28 @@ function Item({ step, busy, primary }: { step: Step; busy: boolean; primary: boo
   const hint = step.hint ? <Text style={styles.hint}>{step.hint}</Text> : null;
   return (
     <View style={styles.item}>
-      <Text style={styles.itemTitle}>
-        {step.granted ? '✓ ' : ''}
-        {step.title}
-      </Text>
+      <View style={styles.itemHeader}>
+        <IconBadge
+          name={step.icon}
+          color={step.granted ? theme.colors.success : theme.colors.primary}
+          background={step.granted ? theme.colors.successSoft : theme.colors.primarySoft}
+          size={40}
+        />
+        <Text style={styles.itemTitle}>{step.title}</Text>
+        {step.granted ? (
+          <View style={styles.grantedPill}>
+            <Icon name="checkmark" size={14} color={theme.colors.success} />
+            <Text style={styles.grantedText}>ניתנה</Text>
+          </View>
+        ) : null}
+      </View>
       <Text style={styles.itemDescription}>{step.description}</Text>
-      {step.granted ? (
-        <Text style={styles.grantedText}>ניתנה</Text>
-      ) : (
+      {step.granted ? null : (
         <>
           {step.hintAfterAction ? null : hint}
           <Button
             title={step.actionTitle}
-            variant={primary ? 'primary' : 'ghost'}
+            variant={primary ? 'primary' : 'secondary'}
             onPress={step.onAction}
             loading={busy}
           />
@@ -465,13 +484,14 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.lg },
   title: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
   },
   intro: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: TEXT_RIGHT,
     lineHeight: 24,
@@ -479,48 +499,50 @@ const styles = StyleSheet.create({
   },
   item: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
+    ...theme.shadows.card,
   },
   itemTitle: {
-    fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    flex: 1,
+    fontSize: theme.typography.subtitle - 1,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
   },
   itemDescription: {
-    fontSize: theme.typography.caption,
+    fontSize: theme.typography.caption + 1,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: TEXT_RIGHT,
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
     lineHeight: 20,
   },
   grantedText: {
     fontSize: theme.typography.caption,
     color: theme.colors.success,
-    textAlign: TEXT_RIGHT,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.semibold,
   },
   hint: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.warning,
     textAlign: TEXT_RIGHT,
     marginBottom: theme.spacing.sm,
     lineHeight: 20,
   },
   limitedBox: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: theme.colors.warningSoft,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     marginTop: theme.spacing.sm,
   },
   limitedText: {
-    fontSize: theme.typography.caption,
-    color: theme.colors.warning,
+    fontSize: theme.typography.caption + 1,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.textPrimary,
     textAlign: TEXT_RIGHT,
     lineHeight: 20,
   },
@@ -529,6 +551,7 @@ const styles = StyleSheet.create({
   progressWrap: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg },
   progressText: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: theme.spacing.xs,
@@ -540,11 +563,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
   },
-  progressFill: { height: 6, backgroundColor: theme.colors.primary },
+  progressFill: { height: 6, backgroundColor: theme.colors.primary, borderRadius: 3 },
   wizardContent: { padding: theme.spacing.lg, flexGrow: 1, justifyContent: 'center' },
-  wizardIcon: { fontSize: 64, textAlign: 'center', marginBottom: theme.spacing.md },
+  wizardGap: { height: theme.spacing.lg },
+  itemHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  grantedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: theme.colors.successSoft,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.sm + 2,
+    paddingVertical: 4,
+  },
+  wizardIcon: { fontSize: 64, fontFamily: theme.fonts.regular, textAlign: 'center', marginBottom: theme.spacing.md },
   wizardBody: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     lineHeight: 24,
@@ -552,26 +587,27 @@ const styles = StyleSheet.create({
   },
   wizardPrivacy: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
   },
   testBox: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginTop: theme.spacing.lg,
+    ...theme.shadows.card,
   },
   testTitle: {
     fontSize: theme.typography.body,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   testBody: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: theme.spacing.xs,
@@ -579,6 +615,7 @@ const styles = StyleSheet.create({
   },
   testResult: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.success,
     textAlign: 'center',
     marginTop: theme.spacing.sm,

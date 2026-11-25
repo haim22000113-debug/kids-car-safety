@@ -31,13 +31,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.sm,
   },
   note: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },

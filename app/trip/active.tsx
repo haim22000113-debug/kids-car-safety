@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
 import { theme } from '../../src/theme';
+import { IconBadge } from '../../src/components/Card';
 import { TripStorage, UserStorage } from '../../src/storage';
 import { Trip, DEFAULT_REMINDER_SETTINGS } from '../../src/models';
 import { trackEvent } from '../../src/analytics/analyticsService';
@@ -127,19 +128,30 @@ export default function ActiveTrip() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>נסיעה פעילה</Text>
+        <IconBadge name="car-sport" color={theme.colors.textOnPrimary} background={theme.colors.primary} size={80} halo />
+        <Text style={[styles.title, { marginTop: theme.spacing.lg }]}>נסיעה פעילה</Text>
         <Text style={styles.wish}>{tripWish(wishIndexOf(trip), childNames)}</Text>
-        <Text style={styles.timer}>{elapsed}</Text>
+        <View style={styles.timerCard}>
+          <Text style={styles.timer}>{elapsed}</Text>
+        </View>
         <Text style={styles.hint}>אנחנו נזכיר לך לבדוק את הרכב בסיום הנסיעה.</Text>
       </View>
       <View style={styles.footer}>
-        <Button title="סיים נסיעה" onPress={onEndTrip} loading={ending} />
+        <Button title="סיים נסיעה" icon="flag" onPress={onEndTrip} loading={ending} />
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  timerCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    marginVertical: theme.spacing.lg,
+    ...theme.shadows.card,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -152,25 +164,26 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.sm,
   },
   wish: {
     fontSize: theme.typography.subtitle,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.primary,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
   },
   timer: {
     fontSize: 56,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.primary,
-    marginBottom: theme.spacing.lg,
     fontVariant: ['tabular-nums'],
   },
   hint: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },

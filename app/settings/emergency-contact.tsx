@@ -5,6 +5,7 @@ import { FormScreen } from '../../src/components/FormScreen';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
+import { ScreenIntro } from '../../src/components/ScreenIntro';
 import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { AUTO_CALL_SUPPORTED } from '../../src/content/autoCall';
 import { UserStorage } from '../../src/storage';
@@ -96,17 +97,20 @@ export default function EmergencyContact() {
         backFallback="/settings"
         footer={
           <>
-            <Button title={`שלח הודעה ל${name.trim()}`} onPress={sendBriefing} />
+            <Button title={`שלח הודעה ל${name.trim()}`} icon="share-social-outline" onPress={sendBriefing} />
             <Button title="המשך" variant="ghost" onPress={finish} style={styles.skipButton} />
           </>
         }
       >
-        <Text style={styles.title}>כדאי לספר ל{name.trim()}</Text>
-        <Text style={styles.subtitle}>
-          {AUTO_CALL_SUPPORTED
-            ? 'אם האפליקציה תתקשר, השיחה תגיע מהמספר שלך ואף אחד לא ידבר. שלח הודעה קצרה שמסבירה מה לעשות אם זה קורה:'
-            : 'שלח הודעה קצרה שמסבירה למה אולי תתקשר מתוך האפליקציה:'}
-        </Text>
+        <ScreenIntro
+          icon="chatbubble-ellipses-outline"
+          title={`כדאי לספר ל${name.trim()}`}
+          subtitle={
+            AUTO_CALL_SUPPORTED
+              ? 'אם האפליקציה תתקשר, השיחה תגיע מהמספר שלך ואף אחד לא ידבר. שלח הודעה קצרה שמסבירה מה לעשות אם זה קורה:'
+              : 'שלח הודעה קצרה שמסבירה למה אולי תתקשר מתוך האפליקציה:'
+          }
+        />
         <Text style={styles.preview}>{briefing}</Text>
       </FormScreen>
     );
@@ -129,12 +133,17 @@ export default function EmergencyContact() {
         </>
       }
     >
-      <Text style={styles.title}>איש קשר לחירום</Text>
-      <Text style={styles.subtitle}>
-        {AUTO_CALL_SUPPORTED
-          ? 'אם לא תאשר שראית את ההתראות תוך ארבע דקות, נתקשר לאדם הזה.'
-          : 'בזמן אזהרה, לחיצה אחת תתקשר לאדם הזה. באייפון האפליקציה לא יכולה להתקשר בעצמה.'}
-      </Text>
+      <ScreenIntro
+        icon="call"
+        title="איש קשר לחירום"
+        subtitle={
+          AUTO_CALL_SUPPORTED
+            ? 'אם לא תאשר שראית את ההתראות תוך ארבע דקות, נתקשר לאדם הזה.'
+            : 'בזמן אזהרה, לחיצה אחת תתקשר לאדם הזה. באייפון האפליקציה לא יכולה להתקשר בעצמה.'
+        }
+        step={fromOnboarding ? 3 : undefined}
+        steps={fromOnboarding ? 4 : undefined}
+      />
 
       <TextField
         label="שם"
@@ -163,26 +172,27 @@ export default function EmergencyContact() {
 const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.sm,
   },
   subtitle: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: theme.spacing.xl,
   },
   preview: {
-    fontSize: theme.typography.caption,
+    fontSize: theme.typography.body - 1,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textPrimary,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.primarySoft,
+    borderRadius: theme.radius.lg,
+    borderTopRightRadius: 4,
     padding: theme.spacing.md,
-    lineHeight: 22,
+    lineHeight: 23,
     textAlign: TEXT_RIGHT,
   },
   skipButton: {

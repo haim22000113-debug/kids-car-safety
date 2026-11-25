@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
     textAlign: TEXT_RIGHT,
@@ -78,11 +79,11 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 28,
     color: theme.colors.textOnPrimary,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
   },
   value: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     minWidth: 40,
     textAlign: 'center',

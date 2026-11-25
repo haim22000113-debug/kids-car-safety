@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../src/components/Button';
 import { theme } from '../src/theme';
+import { IconBadge } from '../src/components/Card';
 import { AUTO_CALL_SUPPORTED } from '../src/content/autoCall';
 import { UserStorage } from '../src/storage';
 import { EmergencyContact } from '../src/models';
@@ -59,18 +60,24 @@ export default function Warning() {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.content}>
-          <Text style={styles.emoji}>🚨</Text>
-          <Text style={styles.title}>מה תרצה לעשות?</Text>
+          <IconBadge name="call" color={theme.colors.danger} background={theme.colors.dangerSoft} size={80} halo />
+          <Text style={[styles.title, styles.titleAfterIcon]}>מה תרצה לעשות?</Text>
         </View>
         <View style={styles.footer}>
           {contact ? (
-            <Button title={`התקשר ל${contact.name}`} onPress={callContact} style={styles.gap} />
+            <Button
+              title={`התקשר ל${contact.name}`}
+              icon="call"
+              variant="danger"
+              onPress={callContact}
+              style={styles.gap}
+            />
           ) : (
             <Text style={styles.noContact}>לא הוגדר איש קשר לחירום.</Text>
           )}
           <Button
             title="חזור לרכב"
-            variant="ghost"
+            variant="secondary"
             onPress={() => setShowHelp(false)}
             style={styles.gap}
           />
@@ -83,10 +90,12 @@ export default function Warning() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <Text style={styles.emoji}>🚨</Text>
-        <Text style={styles.title}>רגע לפני שאתה ממשיך</Text>
+        <IconBadge name="warning" color={theme.colors.danger} background={theme.colors.dangerSoft} size={88} halo />
+        <Text style={[styles.title, styles.titleAfterIcon]}>רגע לפני שאתה ממשיך</Text>
         <Text style={styles.body}>הנסיעה עדיין פתוחה ואתה מתרחק מאזור העצירה.</Text>
-        <Text style={styles.question}>בדקת שכל הילדים יצאו מהרכב?</Text>
+        <View style={styles.questionCard}>
+          <Text style={styles.question}>בדקת שכל הילדים יצאו מהרכב?</Text>
+        </View>
         {contact ? (
           <Text style={styles.callNote}>
             {AUTO_CALL_SUPPORTED
@@ -96,26 +105,35 @@ export default function Warning() {
         ) : null}
       </View>
       <View style={styles.footer}>
-        <Button title="ראיתי, אני מטפל" onPress={onConfirm} loading={busy} style={styles.gap} />
-        <Button title="אני צריך עזרה" variant="ghost" onPress={onNeedHelp} />
+        <Button title="ראיתי, אני מטפל" icon="checkmark-circle" onPress={onConfirm} loading={busy} style={styles.gap} />
+        <Button title="אני צריך עזרה" icon="call-outline" variant="secondary" onPress={onNeedHelp} />
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF5F5' },
+  container: { flex: 1, backgroundColor: '#FFF7F7' },
+  titleAfterIcon: { marginTop: theme.spacing.lg },
+  questionCard: {
+    alignSelf: 'stretch',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    ...theme.shadows.card,
+  },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl },
-  emoji: { fontSize: 64, marginBottom: theme.spacing.lg },
   title: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.danger,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
   },
   body: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
@@ -123,7 +141,7 @@ const styles = StyleSheet.create({
   },
   question: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     lineHeight: 30,
@@ -131,6 +149,7 @@ const styles = StyleSheet.create({
   footer: { padding: theme.spacing.lg },
   callNote: {
     fontSize: theme.typography.caption,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: theme.spacing.md,
@@ -138,6 +157,7 @@ const styles = StyleSheet.create({
   gap: { marginBottom: theme.spacing.sm },
   noContact: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: theme.spacing.md,

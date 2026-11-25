@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Build
@@ -97,7 +98,7 @@ class CountdownActivity : Activity() {
     root.orientation = LinearLayout.VERTICAL
     root.gravity = Gravity.CENTER
     root.layoutDirection = View.LAYOUT_DIRECTION_RTL
-    root.setBackgroundColor(Color.parseColor("#FFF5F5"))
+    root.setBackgroundColor(Color.parseColor("#FFF7F7"))
     root.setPadding(dp(28), dp(48), dp(28), dp(48))
 
     fun text(value: String, size: Float, color: String, bold: Boolean): TextView {
@@ -115,18 +116,23 @@ class CountdownActivity : Activity() {
       return tv
     }
 
-    root.addView(text("לא התקבל אישור", 28f, "#C53030", true))
-    root.addView(text("בדקת שכל הילדים יצאו מהרכב?", 20f, "#1A202C", false))
-    root.addView(text("מתקשרים ל$name בעוד", 18f, "#4A5568", false))
+    root.addView(text("לא התקבל אישור", 28f, "#D1343A", true))
+    root.addView(text("בדקת שכל הילדים יצאו מהרכב?", 20f, "#16213E", false))
+    root.addView(text("מתקשרים ל$name בעוד", 18f, "#5A6479", false))
 
-    countText = text("", 96f, "#C53030", true)
+    countText = text("", 96f, "#D1343A", true)
     root.addView(countText)
 
     val ack = Button(this)
     ack.text = "ראיתי — בטל שיחה"
     ack.textSize = 22f
     ack.setTextColor(Color.WHITE)
-    ack.setBackgroundColor(Color.parseColor("#2F855A"))
+    // אותם צבעים ופינות מעוגלות כמו באפליקציה (עיצוב 2).
+    ack.background = GradientDrawable().apply {
+      setColor(Color.parseColor("#16885A"))
+      cornerRadius = dp(16).toFloat()
+    }
+    ack.isAllCaps = false
     ack.setPadding(dp(16), dp(20), dp(16), dp(20))
     val ackLp = LinearLayout.LayoutParams(
       LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT

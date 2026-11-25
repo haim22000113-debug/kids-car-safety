@@ -5,6 +5,7 @@ import { FormScreen } from '../../src/components/FormScreen';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/theme';
+import { ScreenIntro } from '../../src/components/ScreenIntro';
 import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { UserStorage } from '../../src/storage';
 import { createDefaultUser, Child } from '../../src/models';
@@ -66,7 +67,13 @@ export default function OnboardingChildren() {
 
   return (
     <FormScreen footer={<Button title="המשך" onPress={onContinue} loading={saving} />}>
-      <Text style={styles.title}>הוספת ילדים</Text>
+      <ScreenIntro
+        icon="happy-outline"
+        title="הוספת ילדים"
+        subtitle="השמות מופיעים רק בטלפון שלך, בברכות ובתזכורות."
+        step={2}
+        steps={4}
+      />
 
       {children.map((child, index) => (
         <View key={index} style={styles.childBlock}>
@@ -95,22 +102,21 @@ export default function OnboardingChildren() {
 const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.subtitle,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
   },
   childBlock: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    ...theme.shadows.card,
   },
   childLabel: {
     fontSize: theme.typography.body,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.medium,
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
     textAlign: TEXT_RIGHT,
@@ -118,6 +124,7 @@ const styles = StyleSheet.create({
   formError: {
     color: theme.colors.danger,
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     textAlign: 'center',
     marginTop: theme.spacing.xs,
   },

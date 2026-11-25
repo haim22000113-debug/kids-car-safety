@@ -36,7 +36,7 @@
 - אין תיקיות `android/` ו-`ios/` — managed workflow, prebuild קורה ב-EAS.
   **אל תריץ `expo prebuild` בתיקיית הפרויקט** — זה ייצור אותן ויחליף את
   אופן הבנייה ב-EAS.
-- `npm test` — 147 בדיקות עוברות. `npx tsc --noEmit` נקי.
+- `npm test` — 150 בדיקות עוברות. `npx tsc --noEmit` נקי.
 
 ## הבלוקר שהיה — נפתר, בנייה עוברת
 
@@ -373,7 +373,7 @@ app/                       מסכים (Expo Router).
 
 ## בדיקות
 
-`npm test` — 147 בדיקות שמכסות את תרחישי הבטיחות (נסיעה מלאה, אין תגובה,
+`npm test` — 150 בדיקות שמכסות את תרחישי הבטיחות (נסיעה מלאה, אין תגובה,
 הליכה ברגל שאסור שתייצר אזהרה, חידוש נסיעה, ושרידות אזהרה לסגירת האפליקציה).
 `npx tsc --noEmit` צריך לעבור נקי על `app/` ו-`src/`. שגיאות בקבצי
 `__tests__` על טיפוסי jest אינן חוסמות.
@@ -478,6 +478,33 @@ USE_FULL_SCREEN_INTENT באנדרואיד 14+), המעורר עדיין מתקש
   נשאר בלי אזהרה. **החלטת הבעלים (24.11): אפשרות א' — להשאיר כמו שזה.** לא
   להוסיף "אין ילדים" על התראת תחילת נסיעה או לוח זמנים בלי לשאול שוב.
 
+## עיצוב (גרסה 2, 25.11.2026, בקשת הבעלים: "איכותית מבחינה ויזואלית")
+
+- **גופן Rubik** (`@expo-google-fonts/rubik`, נטען ב-`app/_layout` עם `useFonts`; אם נתקע —
+  אחרי 2 שניות ממשיכים עם גופן המערכת). באנדרואיד גופן מותאם **לא** מגיב ל-`fontWeight`:
+  כל משקל הוא משפחה נפרדת. **תמיד `fontFamily: theme.fonts.bold/semibold/medium/regular`,
+  לעולם לא `fontWeight`.** כל סגנון עם `fontSize` צריך גם `fontFamily`.
+- **אייקונים: `Icon` (Ionicons מ-`@expo/vector-icons`), לא אימוג'י** בממשק. אימוג'י נראים
+  אחרת בכל טלפון. אייקונים לא מתהפכים ב-RTL: "חזור" = `chevron-forward`, "קדימה" = `chevron-back`.
+- **צבעים רק מ-`theme.colors`** (כולל גווני `*Soft` לרקעי מצב), צל מ-`theme.shadows`.
+  רכיבים משותפים: `Card`/`IconBadge`/`ListRow` (`src/components/Card.tsx`), `ScreenIntro`,
+  `Button` (primary / secondary / ghost / danger, עם `icon`).
+- **אייקון האפליקציה** מיוצר בקוד: `python3 scripts/generate-icon.py` (מגן לבן עם וי).
+  גם מסך הספירה הנייטיב (`CountdownActivity`) בצבעי העיצוב.
+- **איך רואים מסכים בלי טלפון:** `npm install --no-save react-native-web@~0.21.0
+  @expo/metro-runtime@~57.0.0`, `npx expo export --platform web`, שרת סטטי, ו-Playwright
+  עם `document.documentElement.dir = 'rtl'` ונתונים ב-localStorage. `--no-save` בכוונה:
+  האפליקציה לא צריכה תמיכה ב-web. התראות ומודול נייטיב לא עובדים שם — רק מראה.
+
+## מסך האבחון — רק לבעלים (25.11.2026)
+
+מוסתר בכל הבניות. כניסה: 7 לחיצות מהירות על שורת הגרסה בתחתית ההגדרות ← קוד בן 6
+ספרות ← הטלפון זוכר (עד "נעל" במסך האבחון). בקוד שמור רק **hash** (SHA-256 עם salt,
+`src/diagnostics.ts`); הקוד עצמו נמסר לבעלים בצ'אט. **אסור לכתוב את הקוד לשום קובץ
+במאגר.** קישור ישיר ל-`/debug` בלי הקוד מחזיר להגדרות. לכל המשתמשים (גם בודקים) יש
+"שלח דיווח על תקלה" בהגדרות, שמשתף את אותו יומן (בלי מיקומים) דרך חלון השיתוף.
+`EXPO_PUBLIC_DIAGNOSTICS` ב-build-apk.yml כבר לא משפיע על כלום.
+
 ## פרסום ב-Google Play (התחיל 23.11.2026)
 
 - **מדיניות פרטיות:** `docs/privacy-policy.html` (עברית + אנגלית). מתארחת ב-GitHub
@@ -486,8 +513,8 @@ USE_FULL_SCREEN_INTENT באנדרואיד 14+), המעורר עדיין מתקש
   (נבדק: אין fetch, push token או SDK אנליטיקס) — אם זה משתנה, המדיניות חייבת להשתנות.
 - **AAB:** פרופיל `production` ב-eas.json (`app-bundle`, `autoIncrement`,
   `appVersionSource: remote`). מפתח החתימה מנוהל ב-EAS. הבנייה הראשונה מהמחשב של
-  הבעלים: `eas build -p android --profile production`. בבנייה הזו
-  `EXPO_PUBLIC_DIAGNOSTICS` לא מוגדר, ולכן מסך האבחון מוסתר.
+  הבעלים: `eas build -p android --profile production`. מסך האבחון מוסתר בכל בנייה
+  (ראה "מסך האבחון — רק לבעלים").
 - **חשבון אישי חדש:** בדיקה סגורה עם 12 בודקים במשך 14 יום לפני פרסום (הכלל של
   גוגל בזמן הכתיבה — לבדוק שלא השתנה).
 - **טפסי הצהרה:** מיקום ברקע (כולל סרטון), foreground service מסוג location,

@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
 import { LoadingScreen } from '../../src/components/LoadingScreen';
 import { theme } from '../../src/theme';
+import { Icon } from '../../src/components/Icon';
+import { IconBadge } from '../../src/components/Card';
 import { TEXT_RIGHT } from '../../src/i18n/rtl';
 import { TripStorage, UserStorage } from '../../src/storage';
 import { Trip, Child, EmergencyContact } from '../../src/models';
@@ -101,7 +103,8 @@ export default function SafetyCheck() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.confirmedTitle}>מעולה ❤️</Text>
+          <IconBadge name="checkmark" color={theme.colors.textOnPrimary} background={theme.colors.success} size={88} halo />
+          <Text style={styles.confirmedTitle}>מעולה</Text>
           <Text style={styles.confirmedText}>כל הילדים מסומנים כיצאו מהרכב.</Text>
         </View>
         <View style={styles.footer}>
@@ -114,22 +117,29 @@ export default function SafetyCheck() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>עוצרים רגע.</Text>
+        <IconBadge name="car-sport" color={theme.colors.primary} background={theme.colors.primarySoft} size={80} halo />
+        <Text style={[styles.title, { marginTop: theme.spacing.lg }]}>עוצרים רגע.</Text>
         <Text style={styles.subtitle}>מי יצא מהרכב?</Text>
 
         <View style={styles.childrenList}>
           {children.length > 0 ? (
-            children.map((child) => (
-              <Text key={child.id} style={styles.childRow}>
-                ○ {child.name}
-              </Text>
+            children.map((child, i) => (
+              <View key={child.id} style={[styles.childItem, i > 0 ? styles.childDivider : null]}>
+                <View style={styles.childAvatar}>
+                  <Text style={styles.childInitial}>{child.name.slice(0, 1)}</Text>
+                </View>
+                <Text style={styles.childRow}>{child.name}</Text>
+              </View>
             ))
           ) : (
             <Text style={styles.childRow}>לא נבחרו ילדים לנסיעה זו</Text>
           )}
         </View>
 
-        <Text style={styles.question}>בדקת את המושב האחורי?</Text>
+        <View style={styles.questionRow}>
+          <Icon name="eye-outline" size={20} color={theme.colors.primary} />
+          <Text style={styles.question}>בדקת את המושב האחורי?</Text>
+        </View>
 
         {noResponse ? (
           <View style={styles.noResponseBanner} accessibilityLiveRegion="polite">
@@ -140,11 +150,12 @@ export default function SafetyCheck() {
         ) : null}
       </View>
       <View style={styles.footer}>
-        <Button title="כן, כולם יצאו" onPress={onConfirm} loading={saving} />
+        <Button title="כן, כולם יצאו" icon="checkmark-circle" onPress={onConfirm} loading={saving} />
         {noResponse && emergencyContact ? (
           <Button
             title={`התקשר ל${emergencyContact.name}`}
-            variant="ghost"
+            variant="danger"
+            icon="call"
             onPress={onCallEmergencyContact}
             style={styles.callButton}
           />
@@ -155,6 +166,18 @@ export default function SafetyCheck() {
 }
 
 const styles = StyleSheet.create({
+  childItem: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  childDivider: { borderTopWidth: 1, borderTopColor: theme.colors.border },
+  childAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  childInitial: { fontSize: theme.typography.body, fontFamily: theme.fonts.bold, color: theme.colors.primary },
+  questionRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -167,37 +190,43 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: theme.typography.subtitle,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.xl,
   },
   childrenList: {
-    marginBottom: theme.spacing.xl,
-    alignItems: 'flex-end',
-    width: '100%',
+    alignSelf: 'stretch',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    marginVertical: theme.spacing.lg,
+    ...theme.shadows.card,
   },
   childRow: {
-    fontSize: theme.typography.subtitle,
+    flex: 1,
+    fontSize: theme.typography.subtitle - 1,
+    fontFamily: theme.fonts.medium,
     color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.sm,
     textAlign: TEXT_RIGHT,
-    width: '100%',
+    paddingVertical: theme.spacing.md,
   },
   question: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   noResponseBanner: {
     marginTop: theme.spacing.lg,
-    backgroundColor: '#FDECEA',
+    backgroundColor: theme.colors.dangerSoft,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
     width: '100%',
@@ -206,6 +235,7 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     textAlign: 'center',
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
   },
   footer: {
     padding: theme.spacing.lg,
@@ -215,12 +245,13 @@ const styles = StyleSheet.create({
   },
   confirmedTitle: {
     fontSize: theme.typography.title,
-    fontWeight: theme.fontWeight.bold,
+    fontFamily: theme.fonts.bold,
     color: theme.colors.success,
     marginBottom: theme.spacing.md,
   },
   confirmedText: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },

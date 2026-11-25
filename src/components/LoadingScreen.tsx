@@ -47,6 +47,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: theme.typography.body,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,

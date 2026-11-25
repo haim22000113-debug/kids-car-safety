@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { theme } from '../theme';
+import { Icon } from './Icon';
 import {
   VERDICT_LABELS,
   WarningVerdict,
@@ -70,7 +71,10 @@ export function WarningFeedbackCard({ warningAt, onDone }: Props) {
                   accessibilityRole="button"
                   accessibilityLabel="כן, יצאתי מהרכב"
                 >
-                  <Text style={styles.optionText}>👍 כן</Text>
+                  <View style={styles.optionRow}>
+                    <Icon name="thumbs-up-outline" size={18} color={theme.colors.primary} />
+                    <Text style={styles.optionText}>כן</Text>
+                  </View>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.option, styles.half, pressed && styles.pressed]}
@@ -78,7 +82,10 @@ export function WarningFeedbackCard({ warningAt, onDone }: Props) {
                   accessibilityRole="button"
                   accessibilityLabel="לא, זו הייתה טעות"
                 >
-                  <Text style={styles.optionText}>👎 לא, טעות</Text>
+                  <View style={styles.optionRow}>
+                    <Icon name="thumbs-down-outline" size={18} color={theme.colors.primary} />
+                    <Text style={styles.optionText}>לא, טעות</Text>
+                  </View>
                 </Pressable>
               </View>
               <Pressable onPress={() => answer('UNSURE')} accessibilityRole="button" style={styles.skip}>
@@ -103,31 +110,30 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: theme.spacing.md,
     backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
-    borderWidth: 1,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
+    ...theme.shadows.card,
   },
   title: {
     fontSize: theme.typography.body,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fonts.medium,
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   row: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   column: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
   half: { flex: 1 },
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   option: {
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primarySoft,
     paddingHorizontal: theme.spacing.md,
   },
-  pressed: { backgroundColor: '#EBF4FF' },
-  optionText: { fontSize: theme.typography.body, color: theme.colors.primary, fontWeight: theme.fontWeight.medium },
+  pressed: { backgroundColor: theme.colors.primarySoft },
+  optionText: { fontSize: theme.typography.body, color: theme.colors.primary, fontFamily: theme.fonts.medium },
   skip: { alignSelf: 'center', paddingVertical: theme.spacing.sm, paddingHorizontal: theme.spacing.md },
-  skipText: { fontSize: theme.typography.caption, color: theme.colors.textSecondary },
+  skipText: { fontSize: theme.typography.caption, fontFamily: theme.fonts.regular, color: theme.colors.textSecondary },
 });
