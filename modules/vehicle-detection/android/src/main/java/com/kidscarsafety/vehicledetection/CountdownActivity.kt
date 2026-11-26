@@ -221,6 +221,22 @@ class CountdownActivity : Activity() {
     vibrator = null
   }
 
+  override fun onResume() {
+    super.onResume()
+    visible = true
+  }
+
+  override fun onPause() {
+    super.onPause()
+    visible = false
+  }
+
+  companion object {
+    /** האם מסך הספירה מוצג עכשיו. ראה EscalationScheduler.repeatAlarm. */
+    @Volatile
+    var visible = false
+  }
+
   override fun onDestroy() {
     timer?.cancel()
     stopAlarm()

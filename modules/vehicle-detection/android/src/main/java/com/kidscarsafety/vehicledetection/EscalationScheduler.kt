@@ -49,6 +49,7 @@ object EscalationScheduler {
   const val ACTION_CALL = "com.kidscarsafety.vehicledetection.ESCALATION_CALL"
   const val ACTION_ACKNOWLEDGE = "com.kidscarsafety.vehicledetection.ESCALATION_ACKNOWLEDGE"
   const val ACTION_URGENT = "com.kidscarsafety.vehicledetection.ESCALATION_URGENT"
+  const val ACTION_REPEAT = "com.kidscarsafety.vehicledetection.ESCALATION_REPEAT"
 
   const val NOTIFICATION_ID = 4712
   private const val TEST_NOTIFICATION_ID = 4714
@@ -62,6 +63,11 @@ object EscalationScheduler {
   private const val RC_ACTIVITY = 104
   private const val RC_URGENT = 106
   private const val RC_TAP_ACK = 108
+  private const val RC_REPEAT = 109
+  /** 12 שניות צליל ועוד 18 שקט. ראה repeatAlarm. */
+  private const val REPEAT_INTERVAL_MS = 30_000L
+  /** בלי "ראיתי" ובלי שיחה (אין קליטה, אין איש קשר) - לא מצלצלים לנצח. */
+  private const val REPEAT_MAX_AFTER_CALL_MS = 15 * 60_000L
 
   /**
    * אין קליטה בזמן השיחה: מנסים שוב כל דקה, עד רבע שעה (בקשת הבעלים, 23.11).
@@ -182,6 +188,12 @@ object EscalationScheduler {
     if (VehicleDetectionStore.getEscalationState(context) != VehicleDetectionStore.ESC_SCHEDULED) return
     ensureChannel(context)
     boostAlarmVolume(context)
+    postUrgentNotification(context)
+    VehicleDetectionStore.appendHistory(context, "ESC_ALARM")
+    scheduleRepeat(context)
+  }
+
+  private fun postUrgentNotification(context: Context) {
 
     val name = VehicleDetectionStore.getContactName(context).ifBlank { "איש הקשר" }
     val hasContact = VehicleDetectionStore.getContactPhone(context).isNotBlank()
@@ -207,12 +219,41 @@ object EscalationScheduler {
     // אותו מזהה כמו התראת הספירה: כשהספירה מתחילה היא מחליפה את האזעקה,
     // ולא מצלצלות שתיים יחד. "ראיתי" מבטל את שתיהן.
     post(context, builder)
-    VehicleDetectionStore.appendHistory(context, "ESC_ALARM")
+  }
+
+  /**
+   * האזעקה חוזרת כל חצי דקה עד "ראיתי" (בקשת הבעלים, 26.11, "סופר חשוב").
+   *
+   * בדיקת שטח: מספיק היה לפתוח את נעילת המסך או להוריד את וילון ההתראות -
+   * והאזעקה השתתקה. זו התנהגות של אנדרואיד עצמו: צליל של התראה נעצר ברגע
+   * שהמשתמש מסתכל על ההתראות. הורה שרק רצה להשתיק את הרעש, ושכח בדיוק את
+   * מה שהרעש בא להזכיר, היה נשאר בשקט - והשרשרת ממשיכה לשיחה בלי שהוא שומע.
+   * עכשיו ההתראה מתפרסמת מחדש (עם הצליל) כל REPEAT_INTERVAL_MS, כל עוד
+   * לא נלחץ "ראיתי". גם החלקה של ההתראה הצידה לא מעלימה אותה.
+   * עוצר: "ראיתי" (acknowledge מבטל את המעורר), שיחה שיצאה, או תקרת זמן.
+   */
+  fun repeatAlarm(context: Context) {
+    val now = System.currentTimeMillis()
+    val callAt = VehicleDetectionStore.getEscalationFor(context)
+    if (callAt > 0L && now > callAt + REPEAT_MAX_AFTER_CALL_MS) return
+    when (VehicleDetectionStore.getEscalationState(context)) {
+      VehicleDetectionStore.ESC_SCHEDULED -> postUrgentNotification(context)
+      // מסך הספירה מנגן אזעקה משלו בלולאה. רק כשהוא לא מוצג - ההתראה.
+      VehicleDetectionStore.ESC_COUNTDOWN -> if (!CountdownActivity.visible) postCountdownNotification(context)
+      VehicleDetectionStore.ESC_ALERTED -> postUrgentNoContact(context)
+      else -> return
+    }
+    scheduleRepeat(context)
+  }
+
+  private fun scheduleRepeat(context: Context) {
+    setAlarm(context, System.currentTimeMillis() + REPEAT_INTERVAL_MS, broadcast(context, ACTION_REPEAT, RC_REPEAT))
   }
 
   /** ההורה אישר שראה. עוצר הכל - מעוררים, התראות, ספירה. */
   fun acknowledge(context: Context, fromUser: Boolean, via: String = "native") {
     cancelAlarm(context, broadcast(context, ACTION_URGENT, RC_URGENT))
+    cancelAlarm(context, broadcast(context, ACTION_REPEAT, RC_REPEAT))
     cancelAlarm(context, broadcast(context, ACTION_COUNTDOWN, RC_COUNTDOWN))
     cancelAlarm(context, broadcast(context, ACTION_CALL, RC_CALL))
     val nm = NotificationManagerCompat.from(context)
@@ -245,6 +286,7 @@ object EscalationScheduler {
       boostAlarmVolume(context)
       postUrgentNoContact(context)
       VehicleDetectionStore.appendHistory(context, "ESC_NO_CONTACT")
+      scheduleRepeat(context)
       return
     }
 

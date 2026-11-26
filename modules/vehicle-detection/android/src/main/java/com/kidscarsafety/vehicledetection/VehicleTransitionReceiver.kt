@@ -40,6 +40,7 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
     private const val BATTERY_NOTIFICATION_ID = 4713
     private const val BATTERY_CHANNEL_ID = "battery-low-v1"
     const val EXTRA_FROM_DETECTION = "from_vehicle_detection"
+    private const val LOW_BATTERY_COOLDOWN_MS = 3 * 60 * 60_000L
 
     /**
      * מעבר שקרה עד כדי כך לפני המעבר האחרון שכבר התקבל נחשב לאותו מעבר.
@@ -162,6 +163,12 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
       val percent = level * 100 / scale
       val plugged = status.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
       if (plugged || percent > VehicleDetectionStore.getLowBatteryPercent(context)) return
+      // פעם בשלוש שעות לכל היותר. בנסיעה ארוכה גוגל מדווחת "נכנס לרכב" שוב ושוב
+      // (אחרי כל עצירה), והאזהרה הזו חזרה בכל פעם (בדיקת שטח 26.11).
+      val nowMs = System.currentTimeMillis()
+      val lastAt = VehicleDetectionStore.getLowBatteryWarnedAt(context)
+      if (lastAt in 1..nowMs && nowMs - lastAt < LOW_BATTERY_COOLDOWN_MS) return
+      VehicleDetectionStore.setLowBatteryWarnedAt(context, nowMs)
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val channel = NotificationChannel(BATTERY_CHANNEL_ID, "סוללה חלשה", NotificationManager.IMPORTANCE_DEFAULT)

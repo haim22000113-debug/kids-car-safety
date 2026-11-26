@@ -42,6 +42,7 @@ object VehicleDetectionStore {
   private const val KEY_LAST_TRANSITION_AT = "last_transition_at"
   private const val KEY_LAST_TRANSITION_TYPE = "last_transition_type"
   private const val KEY_LAST_ALERT_AT = "last_alert_at"
+  private const val KEY_LOW_BATTERY_WARNED_AT = "low_battery_warned_at"
 
   const val EVENT_ENTER = "ENTER_VEHICLE"
   const val EVENT_EXIT = "EXIT_VEHICLE"
@@ -214,6 +215,12 @@ object VehicleDetectionStore {
     prefs(context).edit().putInt(KEY_LOW_BATTERY_PERCENT, percent).apply()
   }
   fun getLowBatteryPercent(context: Context): Int = prefs(context).getInt(KEY_LOW_BATTERY_PERCENT, 20)
+
+  /** מתי נשלחה אזהרת הסוללה האחרונה (פעם בשלוש שעות לכל היותר). */
+  fun setLowBatteryWarnedAt(context: Context, at: Long) {
+    prefs(context).edit().putLong(KEY_LOW_BATTERY_WARNED_AT, at).apply()
+  }
+  fun getLowBatteryWarnedAt(context: Context): Long = prefs(context).getLong(KEY_LOW_BATTERY_WARNED_AT, 0L)
 
   /** כמה פעמים השיחה נדחתה בגלל שאין קליטה. מתאפס בכל הסלמה חדשה. */
   fun setCallRetries(context: Context, n: Int) {

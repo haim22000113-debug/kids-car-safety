@@ -14,6 +14,7 @@ class EscalationReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     when (intent.action) {
       EscalationScheduler.ACTION_URGENT -> EscalationScheduler.postUrgent(context)
+      EscalationScheduler.ACTION_REPEAT -> EscalationScheduler.repeatAlarm(context)
       EscalationScheduler.ACTION_COUNTDOWN -> EscalationScheduler.startCountdown(context)
       EscalationScheduler.ACTION_CALL -> EscalationScheduler.placeCall(context, null)
       EscalationScheduler.ACTION_ACKNOWLEDGE -> EscalationScheduler.acknowledge(context, true)
