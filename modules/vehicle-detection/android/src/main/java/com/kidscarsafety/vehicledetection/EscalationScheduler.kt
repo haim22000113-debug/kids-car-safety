@@ -66,8 +66,8 @@ object EscalationScheduler {
   private const val RC_REPEAT = 109
   /** 12 שניות צליל ועוד 18 שקט. ראה repeatAlarm. */
   private const val REPEAT_INTERVAL_MS = 30_000L
-  /** בלי "ראיתי" ובלי שיחה (אין קליטה, אין איש קשר) - לא מצלצלים לנצח. */
-  private const val REPEAT_MAX_AFTER_CALL_MS = 15 * 60_000L
+  /** בלי "ראיתי" ובלי שיחה (אין קליטה, אין איש קשר) - לא מצלצלים לנצח. הבעלים, 26.11: 5 דקות, לא 15 - הורה עסוק עם הילדים. */
+  private const val REPEAT_MAX_AFTER_CALL_MS = 5 * 60_000L
 
   /**
    * אין קליטה בזמן השיחה: מנסים שוב כל דקה, עד רבע שעה (בקשת הבעלים, 23.11).
