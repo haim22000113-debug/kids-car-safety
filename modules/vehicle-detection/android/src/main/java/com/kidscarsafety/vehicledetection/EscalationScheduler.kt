@@ -123,7 +123,11 @@ object EscalationScheduler {
    * תזמון חוזר לאותו אירוע לא מאפס הסלמה שכבר רצה או הסתיימה. בלי זה,
    * ה-JS שמגיע באיחור היה יכול להתחיל ספירה שנייה אחרי שהשיחה כבר יצאה.
    */
-  fun schedule(context: Context, callAt: Long) {
+  /**
+   * @param exitHappenedAt מתי היציאה קרתה בפועל (מהמקלט הנייטיב, לפי זמן גוגל).
+   * מה-JS לא מועבר, ואז נגזר מרגע השיחה. משמש את isTripAcknowledged.
+   */
+  fun schedule(context: Context, callAt: Long, exitHappenedAt: Long = 0L) {
     val now = System.currentTimeMillis()
     if (callAt < now - SAME_EVENT_WINDOW_MS) {
       VehicleDetectionStore.appendHistory(context, "ESC_SKIP_STALE")
@@ -142,6 +146,10 @@ object EscalationScheduler {
 
     VehicleDetectionStore.setEscalationFor(context, callAt)
     VehicleDetectionStore.setEscalationState(context, VehicleDetectionStore.ESC_SCHEDULED)
+    VehicleDetectionStore.setLastAlertAt(
+      context,
+      if (exitHappenedAt > 0L) exitHappenedAt else callAt - VehicleDetectionStore.getCallDeadlineMs(context)
+    )
     VehicleDetectionStore.setCallRetries(context, 0)
 
     val countdownAt = maxOf(now + 1_000L, callAt - VehicleDetectionStore.getCountdownMs(context))

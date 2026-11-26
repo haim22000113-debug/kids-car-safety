@@ -41,6 +41,7 @@ object VehicleDetectionStore {
    */
   private const val KEY_LAST_TRANSITION_AT = "last_transition_at"
   private const val KEY_LAST_TRANSITION_TYPE = "last_transition_type"
+  private const val KEY_LAST_ALERT_AT = "last_alert_at"
 
   const val EVENT_ENTER = "ENTER_VEHICLE"
   const val EVENT_EXIT = "EXIT_VEHICLE"
@@ -164,7 +165,24 @@ object VehicleDetectionStore {
     val ackAt = p.getLong(KEY_LAST_ACK_AT, 0L)
     if (ackAt == 0L || ackAt > now) return false
     val window = p.getLong(KEY_ACK_WINDOW_MS, 30 * 60_000L)
-    return ackAt > p.getLong(KEY_LAST_VEHICLE_ENTER_AT, 0L) && now - ackAt < window
+    val enterAt = p.getLong(KEY_LAST_VEHICLE_ENTER_AT, 0L)
+    /**
+     * "ראיתי" מכסה רק את היציאה שעליה הוזהר. אם אחרי היציאה הזו גוגל דיווחה
+     * על כניסה לרכב - ההורה המשיך לנסוע, ויציאה הבאה היא יציאה חדשה.
+     *
+     * בדיקת שטח (26.11): אזהרת שווא באמצע נסיעה (יציאה+כניסה באותה שנייה),
+     * ההורה לחץ "ראיתי", ושש דקות אחר כך יציאה אמיתית עם הליכה נזרקה
+     * כ-ACKED_SKIP - כי הכניסה (11:11:09) הייתה לפני האישור (11:14:35).
+     * בלי התנאי הזה, אזהרת שווא אחת משתיקה את האמיתית שאחריה.
+     */
+    val alertAt = p.getLong(KEY_LAST_ALERT_AT, 0L)
+    if (alertAt != 0L && enterAt >= alertAt) return false
+    return ackAt > enterAt && now - ackAt < window
+  }
+
+  /** מתי קרתה היציאה שעליה הוזהר ההורה לאחרונה. ראה isTripAcknowledged. */
+  fun setLastAlertAt(context: Context, at: Long) {
+    prefs(context).edit().putLong(KEY_LAST_ALERT_AT, at).commit()
   }
 
   // commit ולא apply: השלב נקרא מיד ברכיב אחר, ואסור שהכתיבה תהיה עדיין בדרך.

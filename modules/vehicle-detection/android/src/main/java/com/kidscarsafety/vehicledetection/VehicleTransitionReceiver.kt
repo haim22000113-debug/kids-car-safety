@@ -140,7 +140,7 @@ class VehicleTransitionReceiver : BroadcastReceiver() {
 
           // ההסלמה מתוזמנת כאן ולא מה-JavaScript, כי ה-JavaScript לא רץ
           // עכשיו. אם ההורה לא יאשר - השיחה תצא בזמן גם כשהאפליקציה מתה.
-          EscalationScheduler.schedule(context, now + VehicleDetectionStore.getCallDeadlineMs(context))
+          EscalationScheduler.schedule(context, now + VehicleDetectionStore.getCallDeadlineMs(context), happenedAt)
         }
       }
     }
